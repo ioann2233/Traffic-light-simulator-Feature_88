@@ -167,7 +167,31 @@ class TrafficSimulation {
                 Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
             );
             
+            const isYellowLight = {
+                'north': this.trafficLights.north.state === 'yellow',
+                'south': this.trafficLights.south.state === 'yellow',
+                'east': this.trafficLights.east.state === 'yellow',
+                'west': this.trafficLights.west.state === 'yellow'
+            }[vehicle.direction];
+
             const isRedLight = !canPass && isApproachingIntersection;
+
+            // Логика для желтого сигнала
+            if (isYellowLight && isApproachingIntersection) {
+                // Если машина близко к перекрестку - останавливаем
+                if (distanceToIntersection < STOP_LINE_DISTANCE) {
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
+                    return true; // Оставляем машину в симуляции
+                }
+                // Если машина далеко - продолжаем движение
+                else {
+                    vehicle.currentSpeed.dx *= 0.95;
+                    vehicle.currentSpeed.dy *= 0.95;
+                    return true;
+                }
+            }
 
             // Проверка красного света и остановки
             if (isRedLight && isAtStopLine) {
@@ -319,11 +343,12 @@ class TrafficSimulation {
             vehicle.y += vehicle.currentSpeed.dy;
 
             // Remove vehicles that are off screen (wider boundaries)
+            // Убрать удаление машин на желтый сигнал
             return !(
-                vehicle.x < -100 ||
-                vehicle.x > this.canvas.width + 100 ||
-                vehicle.y < -100 ||
-                vehicle.y > this.canvas.height + 100
+                (vehicle.x < -50 && !isYellowLight) ||
+                (vehicle.x > this.canvas.width + 50 && !isYellowLight) ||
+                (vehicle.y < -50 && !isYellowLight) ||
+                (vehicle.y > this.canvas.height + 50 && !isYellowLight)
             );
         });
     }
