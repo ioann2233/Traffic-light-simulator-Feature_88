@@ -335,10 +335,10 @@ class TrafficSimulation {
 
             // Remove vehicles that are off screen (wider boundaries)
             return !(
-                vehicle.x < -50 ||  // Смягчены условия удаления
-                vehicle.x > this.canvas.width + 50 ||
-                vehicle.y < -50 ||
-                vehicle.y > this.canvas.height + 50
+                vehicle.x < -100 ||
+                vehicle.x > this.canvas.width + 100 ||
+                vehicle.y < -100 ||
+                vehicle.y > this.canvas.height + 100
             );
         });
     }
