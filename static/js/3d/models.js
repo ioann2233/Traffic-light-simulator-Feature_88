@@ -186,7 +186,7 @@ class TrafficModels {
                 new THREE.MeshStandardMaterial({
                     color: color,
                     emissive: color,
-                    emissiveIntensity: 0.1,
+                    emissiveIntensity: 0,
                     transparent: true,
                     opacity: 0.9
                 })
@@ -202,7 +202,7 @@ class TrafficModels {
             const glowMaterial = new THREE.MeshBasicMaterial({
                 color: color,
                 transparent: true,
-                opacity: 0.3
+                opacity: 0
             });
             const glowSphere = new THREE.Mesh(
                 new THREE.SphereGeometry(1.3),
