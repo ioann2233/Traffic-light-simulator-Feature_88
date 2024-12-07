@@ -1,9 +1,9 @@
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
-        this.minGreenTime = 5000;  // 5 seconds
-        this.maxGreenTime = 30000; // 30 seconds
-        this.yellowTime = 3000;    // 3 seconds
+        this.minGreenTime = 5000;   // 5 seconds
+        this.maxGreenTime = 130000; // 130 seconds maximum
+        this.yellowTime = 3000;     // 3 seconds
         
         this.startControl();
     }
@@ -14,14 +14,14 @@ class TrafficController {
         // Проверка на затор (более 20 машин)
         if (ns.waiting > 20) {
             return {
-                nsGreenTime: this.maxGreenTime,  // Максимальное время для пропуска затора
+                nsGreenTime: Math.min(130000, this.maxGreenTime), // Максимум 130 секунд
                 ewGreenTime: this.minGreenTime
             };
         }
         if (ew.waiting > 20) {
             return {
                 nsGreenTime: this.minGreenTime,
-                ewGreenTime: this.maxGreenTime  // Максимальное время для пропуска затора
+                ewGreenTime: Math.min(130000, this.maxGreenTime) // Максимум 130 секунд
             };
         }
         

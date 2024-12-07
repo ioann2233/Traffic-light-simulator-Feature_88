@@ -126,11 +126,20 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 40; // Increased safe distance between vehicles
+        const SAFE_DISTANCE = 40; // Safe distance between vehicles
         const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
-        const SPEED_CHANGE_RATE = 0.05; // Rate for smooth speed changes
+        const MAX_SPEED = 60; // Maximum speed in km/h
+        const ACCELERATION_RATE = 0.5; // Acceleration in km/h per frame
+        const SPEED_CHANGE_RATE = 0.8; // Speed change rate
         const MIN_SPEED_RATIO = 0.2; // Minimum speed ratio
-        const STOP_LINE_DISTANCE = 50; // Increased distance to stop line before intersection
+        const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
+
+        const accelerateVehicle = (current, max, accelerationRate) => {
+            if (current < max) {
+                return Math.min(current + accelerationRate, max);
+            }
+            return current;
+        };
 
         this.vehicles = this.vehicles.filter(vehicle => {
             const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
@@ -155,7 +164,7 @@ class TrafficSimulation {
                 Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
             );
 
-            // Strict red light check
+            // Strict red light check and acceleration handling
             const isRedLight = !canPass && (isAtStopLine || isApproachingIntersection);
             if (isRedLight) {
                 vehicle.currentSpeed.dx = 0;
@@ -163,6 +172,9 @@ class TrafficSimulation {
                 vehicle.waiting = true;
                 vehicle.blocked = true;
                 return true; // Keep displaying the vehicle
+            } else if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0 && canPass) {
+                vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
+                vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
             }
 
             // Check if vehicle is at intersection with reduced zone
