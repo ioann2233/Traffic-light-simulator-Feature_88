@@ -20,6 +20,9 @@ class TrafficSimulation {
         
         // Start periodic data updates
         setInterval(() => this.fetchCameraData(), 2000);
+        
+        // Добавляем интервал обновления светофоров
+        setInterval(() => this.updateTrafficLights(), 100);
     }
     
     async fetchCameraData() {
@@ -263,21 +266,21 @@ class TrafficSimulation {
         // Корректное позиционирование машин по полосам
         switch(direction) {
             case 'north':
-                vehicle.mesh.position.set(-12 + laneOffset, 2, 150);
+                vehicle.mesh.position.set(-15 + (lane * 10), 2, 150); // Четкое разделение на полосы
                 vehicle.mesh.rotation.y = Math.PI;
                 vehicle.maxSpeed = { dx: 0, dy: -0.5 };
                 break;
             case 'south':
-                vehicle.mesh.position.set(12 - laneOffset, 2, -150);
+                vehicle.mesh.position.set(15 - (lane * 10), 2, -150);
                 vehicle.maxSpeed = { dx: 0, dy: 0.5 };
                 break;
             case 'east':
-                vehicle.mesh.position.set(-150, 2, -12 + laneOffset);
+                vehicle.mesh.position.set(-150, 2, -15 + (lane * 10));
                 vehicle.mesh.rotation.y = Math.PI / 2;
                 vehicle.maxSpeed = { dx: 0.5, dy: 0 };
                 break;
             case 'west':
-                vehicle.mesh.position.set(150, 2, 12 - laneOffset);
+                vehicle.mesh.position.set(150, 2, 15 - (lane * 10));
                 vehicle.mesh.rotation.y = -Math.PI / 2;
                 vehicle.maxSpeed = { dx: -0.5, dy: 0 };
                 break;
@@ -411,22 +414,28 @@ class TrafficSimulation {
                 child.material.emissive
             );
             
-            lights.forEach((light, index) => {
-                const state = this.trafficLights[direction].state;
-                const isActive = (
-                    (index === 0 && state === 'red') ||
-                    (index === 1 && state === 'yellow') ||
-                    (index === 2 && state === 'green')
-                );
-                
-                const targetIntensity = isActive ? 1 : 0.1;
-                light.material.emissiveIntensity += 
-                    (targetIntensity - light.material.emissiveIntensity) * 0.2;
-                
+            // Сброс всех огней
+            lights.forEach(light => {
+                light.material.emissiveIntensity = 0.1;
                 if (light.userData.pointLight) {
-                    light.userData.pointLight.intensity = isActive ? 0.5 : 0;
+                    light.userData.pointLight.intensity = 0;
                 }
             });
+            
+            // Активация нужного сигнала с высокой яркостью
+            const state = this.trafficLights[direction].state;
+            const lightIndex = {
+                'red': 0,
+                'yellow': 1,
+                'green': 2
+            }[state];
+            
+            if (lights[lightIndex]) {
+                lights[lightIndex].material.emissiveIntensity = 1;
+                if (lights[lightIndex].userData.pointLight) {
+                    lights[lightIndex].userData.pointLight.intensity = 1;
+                }
+            }
         });
     }
 }
