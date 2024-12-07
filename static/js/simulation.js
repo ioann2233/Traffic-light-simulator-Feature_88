@@ -104,32 +104,39 @@ class TrafficSimulation {
     }
 
     handleTrafficLightClick(direction) {
-        const oppositeDirection = {
-            'north': 'south',
-            'south': 'north',
-            'east': 'west',
-            'west': 'east'
-        };
+        // Определяем группы светофоров
+        const nsGroup = ['north', 'south'];
+        const ewGroup = ['east', 'west'];
         
-        // Изменяем состояние кликнутого светофора
-        if (this.trafficLights[direction].state === 'green') {
-            this.trafficLights[direction].state = 'red';
-            // Противоположное направление получает зеленый
-            this.trafficLights[oppositeDirection[direction]].state = 'green';
-            
-            // Перпендикулярные направления получают красный
-            const perpendicular = direction === 'north' || direction === 'south' ? ['east', 'west'] : ['north', 'south'];
-            perpendicular.forEach(dir => {
-                this.trafficLights[dir].state = 'red';
+        // Определяем, к какой группе принадлежит кликнутый светофор
+        const isNS = nsGroup.includes(direction);
+        const currentGroup = isNS ? nsGroup : ewGroup;
+        const oppositeGroup = isNS ? ewGroup : nsGroup;
+        
+        // Определяем текущее состояние группы
+        const currentState = this.trafficLights[direction].state;
+        
+        if (currentState === 'green') {
+            // Сначала включаем желтый для текущей группы
+            currentGroup.forEach(dir => {
+                this.trafficLights[dir].state = 'yellow';
             });
-        } else {
-            this.trafficLights[direction].state = 'green';
-            // Противоположное направление тоже получает зеленый
-            this.trafficLights[oppositeDirection[direction]].state = 'green';
             
-            // Перпендикулярные направления получают красный
-            const perpendicular = direction === 'north' || direction === 'south' ? ['east', 'west'] : ['north', 'south'];
-            perpendicular.forEach(dir => {
+            // Через 2 секунды переключаем на красный и даем зеленый противоположной группе
+            setTimeout(() => {
+                currentGroup.forEach(dir => {
+                    this.trafficLights[dir].state = 'red';
+                });
+                oppositeGroup.forEach(dir => {
+                    this.trafficLights[dir].state = 'green';
+                });
+            }, 2000);
+        } else {
+            // Включаем зеленый для текущей группы и красный для противоположной
+            currentGroup.forEach(dir => {
+                this.trafficLights[dir].state = 'green';
+            });
+            oppositeGroup.forEach(dir => {
                 this.trafficLights[dir].state = 'red';
             });
         }
@@ -360,8 +367,8 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 35;  // Увеличенная безопасная дистанция
-        const SLOW_DISTANCE = 50;  // Увеличенная дистанция замедления
+        const SAFE_DISTANCE = 45;  // Значительно увеличенная безопасная дистанция
+        const SLOW_DISTANCE = 60;  // Увеличенная дистанция замедления
         
         let shouldStop = false;
         let shouldSlow = false;
@@ -376,9 +383,17 @@ class TrafficSimulation {
                     Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
                 );
                 
-                if (distance < SAFE_DISTANCE) {
+                // Учитываем направление движения при проверке расстояния
+                const isAhead = (
+                    (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
+                    (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
+                    (vehicle.direction === 'east' && other.mesh.position.x > vehicle.mesh.position.x) ||
+                    (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
+                );
+                
+                if (isAhead && distance < SAFE_DISTANCE) {
                     shouldStop = true;
-                } else if (distance < SLOW_DISTANCE) {
+                } else if (isAhead && distance < SLOW_DISTANCE) {
                     shouldSlow = true;
                 }
             }
@@ -433,31 +448,25 @@ class TrafficSimulation {
             const lightMesh = this[direction + 'Light'];
             if (!lightMesh) return;
             
-            const lights = lightMesh.children.filter(child => 
-                child instanceof THREE.Mesh && 
-                child.material.emissive
-            );
+            // Получаем все сигналы светофора
+            const lights = lightMesh.userData.lights;
+            if (!lights) return;
             
-            // Сброс всех огней
-            lights.forEach(light => {
+            // Сбрасываем все сигналы
+            Object.values(lights).forEach(light => {
                 light.material.emissiveIntensity = 0.1;
                 if (light.userData.pointLight) {
                     light.userData.pointLight.intensity = 0;
                 }
             });
             
-            // Активация нужного сигнала с высокой яркостью
+            // Активируем нужный сигнал
             const state = this.trafficLights[direction].state;
-            const lightIndex = {
-                'red': 0,
-                'yellow': 1,
-                'green': 2
-            }[state];
-            
-            if (lights[lightIndex]) {
-                lights[lightIndex].material.emissiveIntensity = 1;
-                if (lights[lightIndex].userData.pointLight) {
-                    lights[lightIndex].userData.pointLight.intensity = 1;
+            const activeLight = lights[state];
+            if (activeLight) {
+                activeLight.material.emissiveIntensity = 1;
+                if (activeLight.userData.pointLight) {
+                    activeLight.userData.pointLight.intensity = 2;
                 }
             }
         });

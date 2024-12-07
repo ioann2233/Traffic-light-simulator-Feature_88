@@ -135,33 +135,22 @@ class TrafficModels {
             );
             light.position.set(0, y, 1.5);
             
-            // Увеличенное свечение
+            // Добавление яркого свечения
             const glow = new THREE.PointLight(color, 0, 5);
             glow.position.set(0, y, 1.5);
             light.userData.pointLight = glow;
             
-            // Добавление ореола свечения
-            const glowMaterial = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0.2
-            });
-            const glowSphere = new THREE.Mesh(
-                new THREE.SphereGeometry(1.5),
-                glowMaterial
-            );
-            glowSphere.position.set(0, y, 1.5);
-            
             group.add(light);
             group.add(glow);
-            group.add(glowSphere);
             return light;
         };
         
-        // Создаем сигналы с более ярким свечением
-        createLight(0xff0000, 16);  // Красный
-        createLight(0xffff00, 13);  // Желтый
-        createLight(0x00ff00, 10);  // Зеленый
+        // Создаем сигналы
+        group.userData.lights = {
+            red: createLight(0xff0000, 16),
+            yellow: createLight(0xffff00, 13),
+            green: createLight(0x00ff00, 10)
+        };
         
         return group;
     }
