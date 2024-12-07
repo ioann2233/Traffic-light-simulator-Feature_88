@@ -172,15 +172,6 @@ class TrafficModels {
         group.add(housing);
         
         const createLight = (color, y) => {
-            // Черное основание
-            const base = new THREE.Mesh(
-                new THREE.CircleGeometry(1.2, 32),
-                new THREE.MeshStandardMaterial({ color: 0x000000 })
-            );
-            base.position.set(0, y, 1.52);
-            group.add(base);
-            
-            // Светящийся элемент
             const light = new THREE.Mesh(
                 new THREE.SphereGeometry(1),
                 new THREE.MeshStandardMaterial({
@@ -193,20 +184,18 @@ class TrafficModels {
             );
             light.position.set(0, y, 1.5);
             
-            // Добавление яркого свечения
-            const glow = new THREE.PointLight(color, 0, 5);
+            // Усиленное свечение
+            const glow = new THREE.PointLight(color, 0, 8); // Увеличен радиус свечения
             glow.position.set(0, y, 1.5);
-            light.userData.pointLight = glow;
             
-            // Добавление ореола свечения
-            const glowMaterial = new THREE.MeshBasicMaterial({
-                color: color,
-                transparent: true,
-                opacity: 0
-            });
+            // Более заметный ореол
             const glowSphere = new THREE.Mesh(
-                new THREE.SphereGeometry(1.3),
-                glowMaterial
+                new THREE.SphereGeometry(1.5), // Увеличен размер ореола
+                new THREE.MeshBasicMaterial({
+                    color: color,
+                    transparent: true,
+                    opacity: 0
+                })
             );
             glowSphere.position.set(0, y, 1.5);
             

@@ -108,22 +108,22 @@ class TrafficController {
             const trafficData = this.simulation.getTrafficData();
             const currentState = this.rlAgent.getState(trafficData);
             
-            // Обновляем время фазы
-            this.currentPhase.timeLeft -= 1000;
+            // Плавное уменьшение времени
+            this.currentPhase.timeLeft -= 100;
             
-            // Обновляем отображение светофора
+            // Обновляем отображение светофора каждые 100мс
             this.updateTrafficLights();
             
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
-                    // Переход на желтый
+                    // Плавный переход на желтый
                     this.currentPhase.state = 'yellow';
                     this.currentPhase.timeLeft = 5000;
-                    this.setLightsWithAnimation(this.currentPhase.direction, 'yellow');
+                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Переход на красный и смена направления
+                    // Плавный переход на красный
                     this.currentPhase.state = 'red';
-                    this.setLightsWithAnimation(this.currentPhase.direction, 'red');
+                    this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
                     
                     // Меняем направление
                     this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
@@ -136,12 +136,12 @@ class TrafficController {
                     // Устанавливаем время в пределах от 20 до 160 секунд
                     this.currentPhase.timeLeft = Math.max(20000, Math.min(160000, nextGreenTime));
                     
-                    // Устанавливаем зеленый для нового направления
-                    this.setLightsWithAnimation(this.currentPhase.direction, 'green');
+                    // Плавный переход на зеленый для нового направления
+                    this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
                     this.currentPhase.state = 'green';
                 }
             }
-        }, 100); // Уменьшаем интервал обновления для более плавной работы
+        }, 100);
     }
     }
 
@@ -161,23 +161,45 @@ class TrafficController {
         }
     }
 
-    setLightsWithAnimation(direction, state) {
+    animateTransition(direction, fromState, toState, duration) {
+        const startTime = performance.now();
         const directions = direction === 'ns' ? ['north', 'south'] : ['east', 'west'];
-        const oppositeDirections = direction === 'ns' ? ['east', 'west'] : ['north', 'south'];
         
-        directions.forEach(dir => {
-            this.simulation.trafficLights[dir].state = state;
-        });
+        const animate = (currentTime) => {
+            const progress = (currentTime - startTime) / duration;
+            
+            if (progress < 1) {
+                directions.forEach(dir => {
+                    const lightMesh = this.simulation[dir + 'Light'];
+                    if (!lightMesh || !lightMesh.userData.lights) return;
+                    
+                    const fromElements = lightMesh.userData.lights[fromState];
+                    const toElements = lightMesh.userData.lights[toState];
+                    
+                    if (fromElements && toElements) {
+                        // Плавное затухание старого сигнала
+                        fromElements.light.material.emissiveIntensity = 1 - progress;
+                        fromElements.glow.intensity = 2 * (1 - progress);
+                        fromElements.glowSphere.material.opacity = 0.3 * (1 - progress);
+                        
+                        // Плавное появление нового сигнала
+                        toElements.light.material.emissiveIntensity = progress;
+                        toElements.glow.intensity = 2 * progress;
+                        toElements.glowSphere.material.opacity = 0.3 * progress;
+                    }
+                });
+                
+                requestAnimationFrame(animate);
+            } else {
+                // Установка финальных значений
+                directions.forEach(dir => {
+                    this.simulation.trafficLights[dir].state = toState;
+                });
+                this.simulation.updateTrafficLights();
+            }
+        };
         
-        // Если включаем зеленый в одном направлении, выключаем в другом
-        if (state === 'green') {
-            oppositeDirections.forEach(dir => {
-                this.simulation.trafficLights[dir].state = 'red';
-            });
-        }
-        
-        // Обновляем визуальное отображение светофоров
-        this.simulation.updateTrafficLights();
+        requestAnimationFrame(animate);
     }
 
     calculateReward(trafficData) {
