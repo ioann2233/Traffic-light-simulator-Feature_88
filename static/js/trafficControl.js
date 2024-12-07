@@ -1,9 +1,9 @@
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
-        this.minGreenTime = 5000;   // 5 seconds
-        this.maxGreenTime = 130000; // 130 seconds maximum
-        this.yellowTime = 3000;     // 3 seconds
+        this.minGreenTime = 3000;   // Уменьшено с 5000 до 3000 мс
+        this.maxGreenTime = 130000; // 130 секунд максимум
+        this.yellowTime = 2000;     // Уменьшено с 3000 до 2000 мс
         
         this.startControl();
     }
@@ -11,23 +11,23 @@ class TrafficController {
     calculateGreenTime(trafficData) {
         const { ns, ew } = trafficData;
         
-        // Проверка на затор (более 20 машин)
-        if (ns.waiting > 20) {
+        // Изменить порог с 20 на 10 машин
+        if (ns.waiting > 10) {  // Было 20, стало 10
             return {
-                nsGreenTime: Math.min(130000, this.maxGreenTime), // Максимум 130 секунд
+                nsGreenTime: Math.min(130000, this.maxGreenTime),
                 ewGreenTime: this.minGreenTime
             };
         }
-        if (ew.waiting > 20) {
+        if (ew.waiting > 10) {  // Было 20, стало 10
             return {
                 nsGreenTime: this.minGreenTime,
-                ewGreenTime: Math.min(130000, this.maxGreenTime) // Максимум 130 секунд
+                ewGreenTime: Math.min(130000, this.maxGreenTime)
             };
         }
         
-        // Существующая логика расчета времени
-        const nsScore = (ns.waiting * 2) + (1 / (ns.avgSpeed + 0.1));
-        const ewScore = (ew.waiting * 2) + (1 / (ew.avgSpeed + 0.1));
+        // Увеличить вес ожидающих машин в формуле
+        const nsScore = (ns.waiting * 3) + (1 / (ns.avgSpeed + 0.1));  // Увеличен множитель с 2 до 3
+        const ewScore = (ew.waiting * 3) + (1 / (ew.avgSpeed + 0.1));  // Увеличен множитель с 2 до 3
         
         const baseTime = this.minGreenTime;
         const variableTime = this.maxGreenTime - this.minGreenTime;
