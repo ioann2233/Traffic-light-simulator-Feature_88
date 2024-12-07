@@ -337,8 +337,8 @@ class TrafficSimulation {
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
         
+        // Если машина уже в перекрестке - она продолжает движение без остановки
         if (inIntersection) {
-            // Машины в перекрестке всегда продолжают движение на максимальной скорости
             vehicle.waiting = false;
             vehicle.currentSpeed = {...vehicle.maxSpeed};
             return;

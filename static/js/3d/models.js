@@ -2,65 +2,39 @@ class TrafficModels {
     static createRoad() {
         const group = new THREE.Group();
         
-        // Основная дорога с 4 полосами (теперь горизонтально)
-        const roadWidth = 40;
-        const roadLength = 200;
-        
-        // Асфальт
-        const roadGeometry = new THREE.PlaneGeometry(roadLength, roadWidth);
+        // Основная дорога
+        const roadGeometry = new THREE.PlaneGeometry(200, 40);
         const roadMaterial = new THREE.MeshStandardMaterial({ 
             color: 0x333333,
             roughness: 0.8
         });
         const road = new THREE.Mesh(roadGeometry, roadMaterial);
-        road.rotation.x = -Math.PI / 2; // Поворот для горизонтального положения
+        road.rotation.x = -Math.PI / 2;
         road.receiveShadow = true;
         group.add(road);
         
-        // Разметка
-        const lineMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFFFFF,
-            roughness: 0.4
-        });
-        
-        // Центральная двойная линия
-        [-1, 1].forEach(offset => {
-            const centerLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(roadLength, 0.5),
-                lineMaterial
-            );
-            centerLine.rotation.x = -Math.PI / 2;
-            centerLine.position.y = 0.1;
-            centerLine.position.z = offset;
-            group.add(centerLine);
-        });
-        
-        // Боковые линии
-        [-roadWidth/2, roadWidth/2].forEach(z => {
-            const sideLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(roadLength, 0.5),
-                lineMaterial
-            );
-            sideLine.rotation.x = -Math.PI / 2;
-            sideLine.position.y = 0.1;
-            sideLine.position.z = z;
-            group.add(sideLine);
-        });
-        
-        // Разметка полос движения
-        [-roadWidth/4, roadWidth/4].forEach(z => {
-            const laneMarkings = new THREE.Group();
-            for(let x = -90; x < 90; x += 20) {
-                const dash = new THREE.Mesh(
-                    new THREE.PlaneGeometry(10, 0.5),
-                    lineMaterial
+        // Только основная разметка и пешеходные переходы
+        const createPedestrianCrossing = (x, z, rotation) => {
+            const crossing = new THREE.Group();
+            for(let i = -15; i <= 15; i += 3) {
+                const stripe = new THREE.Mesh(
+                    new THREE.PlaneGeometry(5, 1),
+                    new THREE.MeshStandardMaterial({ color: 0xFFFFFF })
                 );
-                dash.position.set(x, 0.1, z);
-                dash.rotation.x = -Math.PI / 2;
-                laneMarkings.add(dash);
+                stripe.position.set(i, 0.1, 0);
+                stripe.rotation.x = -Math.PI / 2;
+                crossing.add(stripe);
             }
-            group.add(laneMarkings);
-        });
+            crossing.position.set(x, 0, z);
+            crossing.rotation.y = rotation;
+            return crossing;
+        };
+        
+        // Добавляем пешеходные переходы
+        group.add(createPedestrianCrossing(20, 0, 0));
+        group.add(createPedestrianCrossing(-20, 0, 0));
+        group.add(createPedestrianCrossing(0, 20, Math.PI / 2));
+        group.add(createPedestrianCrossing(0, -20, Math.PI / 2));
         
         return group;
     }

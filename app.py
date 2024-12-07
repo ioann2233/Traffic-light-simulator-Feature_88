@@ -87,65 +87,35 @@ def download():
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
-        camera_id = request.json.get('camera_id', 'cam1') if request.json else 'cam1'
+        data = request.get_json()
+        if not data:
+            raise ValueError("No JSON data received")
+            
+        camera_id = data.get('camera_id', 'cam1')
         
-        # Генерация реалистичных данных о трафике
-        ns_count = random.randint(3, 10)
-        ew_count = random.randint(3, 10)
-        
-        # Вычисление ожидающих машин на основе светофоров
-        ns_waiting = min(random.randint(0, ns_count), ns_count)
-        ew_waiting = min(random.randint(0, ew_count), ew_count)
-        
+        # Генерация реалистичных данных
         response_data = {
             'camera_id': camera_id,
+            'intersection_name': 'Перекресток №1',
+            'cameras': {
+                'ns': {'ip': '192.168.1.101', 'status': 'active'},
+                'ew': {'ip': '192.168.1.102', 'status': 'active'}
+            },
             'ns': {
-                'count': ns_count,
-                'waiting': ns_waiting,
-                'avgSpeed': random.uniform(0.4, 0.8),
-                'turning': {
-                    'left': random.randint(0, 2),
-                    'right': random.randint(0, 2)
-                }
+                'count': random.randint(3, 10),
+                'waiting': random.randint(0, 5),
+                'avgSpeed': random.uniform(0.4, 0.8)
             },
             'ew': {
-                'count': ew_count,
-                'waiting': ew_waiting,
-                'avgSpeed': random.uniform(0.4, 0.8),
-                'turning': {
-                    'left': random.randint(0, 2),
-                    'right': random.randint(0, 2)
-                }
-            },
-            'pedestrians': {
-                'ns': random.randint(0, 5),
-                'ew': random.randint(0, 5)
+                'count': random.randint(3, 10),
+                'waiting': random.randint(0, 5),
+                'avgSpeed': random.uniform(0.4, 0.8)
             }
         }
         
         return jsonify(response_data)
     except Exception as e:
-        print(f"Error in update_camera_data: {str(e)}")
-        # Возвращаем статические данные в случае ошибки
-        return jsonify({
-            'camera_id': 'cam1',
-            'ns': {
-                'count': 5,
-                'waiting': 2,
-                'avgSpeed': 0.6,
-                'turning': {'left': 1, 'right': 1}
-            },
-            'ew': {
-                'count': 5,
-                'waiting': 2,
-                'avgSpeed': 0.6,
-                'turning': {'left': 1, 'right': 1}
-            },
-            'pedestrians': {
-                'ns': 2,
-                'ew': 2
-            }
-        }), 200
+        return jsonify({'error': str(e)}), 400
 
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():
