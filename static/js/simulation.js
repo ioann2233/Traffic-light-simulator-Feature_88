@@ -26,7 +26,7 @@ class TrafficSimulation {
             height: 60
         };
         
-        this.spawnInterval = setInterval(() => this.spawnVehicle(), 500); // Increased spawn rate to 500ms
+        this.spawnInterval = setInterval(() => this.spawnVehicle(), 800); // Adjusted spawn rate to 800ms to prevent congestion
         console.log('TrafficSimulation initialized successfully');
         this.animate();
     }
@@ -126,12 +126,12 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 40; // Safe distance between vehicles
+        const SAFE_DISTANCE = 30; // Уменьшенное безопасное расстояние
         const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
         const MAX_SPEED = 60; // Maximum speed in km/h
         const ACCELERATION_RATE = 0.5; // Acceleration in km/h per frame
         const SPEED_CHANGE_RATE = 0.8; // Speed change rate
-        const MIN_SPEED_RATIO = 0.2; // Minimum speed ratio
+        const MIN_SPEED_RATIO = 0.3; // Увеличенная минимальная скорость
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
 
         const accelerateVehicle = (current, max, accelerationRate) => {
@@ -165,13 +165,28 @@ class TrafficSimulation {
             );
 
             // Strict red light check and acceleration handling
-            const isRedLight = !canPass && (isAtStopLine || isApproachingIntersection);
+            const isRedLight = !canPass && isAtStopLine;
             if (isRedLight) {
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
-                vehicle.waiting = true;
-                vehicle.blocked = true;
-                return true; // Keep displaying the vehicle
+                // Вместо полной остановки - замедление
+                const slowDownSpeed = Math.max(
+                    Math.abs(vehicle.maxSpeed.dx) * 0.3,
+                    Math.abs(vehicle.maxSpeed.dy) * 0.3
+                );
+                
+                // Плавное замедление
+                vehicle.currentSpeed.dx = vehicle.currentSpeed.dx * 0.9;
+                vehicle.currentSpeed.dy = vehicle.currentSpeed.dy * 0.9;
+                
+                // Минимальная скорость движения
+                if (Math.abs(vehicle.currentSpeed.dx) < slowDownSpeed) {
+                    vehicle.currentSpeed.dx = slowDownSpeed * Math.sign(vehicle.maxSpeed.dx);
+                }
+                if (Math.abs(vehicle.currentSpeed.dy) < slowDownSpeed) {
+                    vehicle.currentSpeed.dy = slowDownSpeed * Math.sign(vehicle.maxSpeed.dy);
+                }
+                
+                vehicle.waiting = false;  // Машина не ждет, а движется
+                return true;
             } else if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0 && canPass) {
                 vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
                 vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
@@ -236,9 +251,19 @@ class TrafficSimulation {
                             vehicle.currentSpeed.dy = 0;
                         } else if (distance < SAFE_DISTANCE) {
                             shouldSlow = true;
-                            // Smooth braking
-                            vehicle.currentSpeed.dx *= 0.8;
-                            vehicle.currentSpeed.dy *= 0.8;
+                            // Минимальная скорость движения в заторе
+                            const minTrafficSpeed = Math.max(
+                                Math.abs(vehicle.maxSpeed.dx) * MIN_SPEED_RATIO,
+                                Math.abs(vehicle.maxSpeed.dy) * MIN_SPEED_RATIO
+                            );
+                            
+                            // Поддерживать движение на минимальной скорости
+                            if (Math.abs(vehicle.currentSpeed.dx) < minTrafficSpeed) {
+                                vehicle.currentSpeed.dx = minTrafficSpeed * Math.sign(vehicle.maxSpeed.dx);
+                            }
+                            if (Math.abs(vehicle.currentSpeed.dy) < minTrafficSpeed) {
+                                vehicle.currentSpeed.dy = minTrafficSpeed * Math.sign(vehicle.maxSpeed.dy);
+                            }
                         }
                     }
                 }
