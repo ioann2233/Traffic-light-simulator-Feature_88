@@ -56,11 +56,15 @@ class TrafficSimulation {
         }
 
         this.vehicles.push({
-            x, y, dx, dy,
+            x, y, 
+            dx, dy,
+            maxSpeed: { dx: dx, dy: dy },
+            currentSpeed: { dx: dx, dy: dy },
             direction,
             width: 20,
             height: 30,
-            waiting: false
+            waiting: false,
+            blocked: false
         });
     }
 
@@ -105,6 +109,10 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
+        const SAFE_DISTANCE = 40; // Minimum safe distance between vehicles
+        const INTERSECTION_CLEARANCE = 80; // Space needed after intersection
+        const SPEED_CHANGE_RATE = 0.1; // Rate of speed change for gradual adjustments
+
         this.vehicles = this.vehicles.filter(vehicle => {
             const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
             const canPass = isVertical ? 
@@ -119,14 +127,81 @@ class TrafficSimulation {
                 vehicle.x < this.intersection.x + 40
             );
 
+            // Check for vehicles ahead and maintain safe distance
+            let shouldStop = false;
+            let nearestVehicleAhead = null;
+            let minDistance = Infinity;
+
+            this.vehicles.forEach(otherVehicle => {
+                if (vehicle === otherVehicle) return;
+
+                // Only check vehicles in the same direction
+                if (vehicle.direction === otherVehicle.direction) {
+                    let distance;
+                    if (isVertical) {
+                        if (Math.abs(vehicle.x - otherVehicle.x) < 20) { // Same lane
+                            distance = vehicle.direction === 'north' ?
+                                vehicle.y - otherVehicle.y :
+                                otherVehicle.y - vehicle.y;
+                        }
+                    } else {
+                        if (Math.abs(vehicle.y - otherVehicle.y) < 20) { // Same lane
+                            distance = vehicle.direction === 'east' ?
+                                otherVehicle.x - vehicle.x :
+                                vehicle.x - otherVehicle.x;
+                        }
+                    }
+
+                    if (distance > 0 && distance < minDistance) {
+                        minDistance = distance;
+                        nearestVehicleAhead = otherVehicle;
+                    }
+                }
+            });
+
+            // Check intersection blocking
             if (atIntersection && !canPass) {
                 vehicle.waiting = true;
-                return true;
+                vehicle.blocked = true;
+                shouldStop = true;
+            } else if (atIntersection && canPass) {
+                // Check if there's enough space after intersection
+                const spaceAhead = this.vehicles.every(otherVehicle => {
+                    if (vehicle === otherVehicle || vehicle.direction !== otherVehicle.direction) return true;
+                    
+                    const aheadOfIntersection = (
+                        (vehicle.direction === 'north' && otherVehicle.y < vehicle.y - INTERSECTION_CLEARANCE) ||
+                        (vehicle.direction === 'south' && otherVehicle.y > vehicle.y + INTERSECTION_CLEARANCE) ||
+                        (vehicle.direction === 'east' && otherVehicle.x > vehicle.x + INTERSECTION_CLEARANCE) ||
+                        (vehicle.direction === 'west' && otherVehicle.x < vehicle.x - INTERSECTION_CLEARANCE)
+                    );
+                    
+                    return aheadOfIntersection;
+                });
+
+                if (!spaceAhead) {
+                    vehicle.blocked = true;
+                    shouldStop = true;
+                }
             }
 
-            vehicle.waiting = false;
-            vehicle.x += vehicle.dx;
-            vehicle.y += vehicle.dy;
+            // Adjust speed based on conditions
+            if (shouldStop || (nearestVehicleAhead && minDistance < SAFE_DISTANCE)) {
+                // Gradually decrease speed
+                vehicle.currentSpeed.dx = Math.max(0, Math.abs(vehicle.currentSpeed.dx) - SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dx);
+                vehicle.currentSpeed.dy = Math.max(0, Math.abs(vehicle.currentSpeed.dy) - SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dy);
+                vehicle.waiting = true;
+            } else {
+                // Gradually increase speed back to max
+                vehicle.currentSpeed.dx = Math.min(Math.abs(vehicle.maxSpeed.dx), Math.abs(vehicle.currentSpeed.dx) + SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dx);
+                vehicle.currentSpeed.dy = Math.min(Math.abs(vehicle.maxSpeed.dy), Math.abs(vehicle.currentSpeed.dy) + SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dy);
+                vehicle.waiting = false;
+                vehicle.blocked = false;
+            }
+
+            // Update position
+            vehicle.x += vehicle.currentSpeed.dx;
+            vehicle.y += vehicle.currentSpeed.dy;
 
             // Remove vehicles that are off screen
             return !(
