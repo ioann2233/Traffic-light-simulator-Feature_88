@@ -54,6 +54,13 @@
         <button onclick="changeTrafficLight('yellow')" style="background: yellow; margin: 5px;">Желтый</button>
         <button onclick="changeTrafficLight('green')" style="background: green; margin: 5px;">Зеленый</button>
     </div>
+    <div id="cameraView" class="modal">
+        <div class="modal-content">
+            <video id="cameraFeed" width="640" height="480" autoplay muted>
+                <source src="/static/traffic_camera.mp4" type="video/mp4">
+            </video>
+        </div>
+    </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>

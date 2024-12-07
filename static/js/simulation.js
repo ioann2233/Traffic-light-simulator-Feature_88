@@ -276,6 +276,10 @@ class TrafficSimulation {
         const lane = Math.floor(Math.random() * 2);
         const laneOffset = lane * 12; // Увеличенное расстояние между полосами
         
+        // Добавляем случайный поворот
+        const willTurn = Math.random() < 0.3; // 30% шанс поворота
+        const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+        
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
             direction: direction,
@@ -359,12 +363,25 @@ class TrafficSimulation {
         }
     }
 
+    isInSamePath(vehicle1, vehicle2) {
+        return vehicle1.direction === vehicle2.direction && vehicle1.lane === vehicle2.lane;
+    }
+
     checkCollisions(vehicle) {
         const SAFE_DISTANCE = 45;
         const SLOW_DISTANCE = 60;
+        const INTERSECTION_ZONE = 10;
         
-        let shouldStop = false;
+        // Проверяем, находится ли машина в зоне перекрестка
+        const inIntersection = Math.abs(vehicle.mesh.position.x) < INTERSECTION_ZONE && 
+                              Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE;
         
+        if (inIntersection) {
+            // В перекрестке всегда движемся, если есть разрешающий сигнал
+            return;
+        }
+        
+        // Проверка коллизий с другими машинами
         this.vehicles.forEach(other => {
             if (other === vehicle) return;
             
@@ -373,26 +390,15 @@ class TrafficSimulation {
                 Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
             );
             
-            // Проверяем только машины впереди
-            const isAhead = (
-                (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
-                (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
-                (vehicle.direction === 'east' && other.mesh.position.x > vehicle.mesh.position.x) ||
-                (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
-            );
-            
-            if (isAhead && distance < SAFE_DISTANCE) {
-                shouldStop = true;
-            } else if (isAhead && distance < SLOW_DISTANCE && other.direction === vehicle.direction) {
+            // Учитываем направление движения и повороты
+            if (this.isInSamePath(vehicle, other) && distance < SAFE_DISTANCE) {
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
+            } else if (distance < SLOW_DISTANCE) {
                 vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.5;
                 vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.5;
             }
         });
-        
-        if (shouldStop) {
-            vehicle.currentSpeed.dx = 0;
-            vehicle.currentSpeed.dy = 0;
-        }
     }
 
     startSimulation() {
@@ -434,14 +440,31 @@ class TrafficSimulation {
             const lightMesh = this[direction + 'Light'];
             if (!lightMesh || !lightMesh.userData.lights) return;
             
-            // Обновляем состояние каждого сигнала
+            // Обновляем состояние каждого сигнала с анимацией
             Object.entries(lightMesh.userData.lights).forEach(([state, elements]) => {
                 const isActive = this.trafficLights[direction].state === state;
-                elements.light.material.emissiveIntensity = isActive ? 1 : 0.1;
-                elements.glow.intensity = isActive ? 2 : 0;
-                elements.glowSphere.material.opacity = isActive ? 0.3 : 0;
+                const targetIntensity = isActive ? 1 : 0.1;
+                const targetGlow = isActive ? 2 : 0;
+                const targetOpacity = isActive ? 0.3 : 0;
+                
+                // Плавное изменение интенсивности
+                elements.light.material.emissiveIntensity += 
+                    (targetIntensity - elements.light.material.emissiveIntensity) * 0.1;
+                elements.glow.intensity += 
+                    (targetGlow - elements.glow.intensity) * 0.1;
+                elements.glowSphere.material.opacity += 
+                    (targetOpacity - elements.glowSphere.material.opacity) * 0.1;
             });
         });
+        
+        // Обновляем отображение статистики
+        const data = this.getTrafficData();
+        document.getElementById('ns-queue').textContent = data.ns.waiting;
+        document.getElementById('ew-queue').textContent = data.ew.waiting;
+        document.getElementById('ns-speed').textContent = 
+            Math.round(data.ns.avgSpeed * 50) + ' км/ч';
+        document.getElementById('ew-speed').textContent = 
+            Math.round(data.ew.avgSpeed * 50) + ' км/ч';
     }
 }
 
