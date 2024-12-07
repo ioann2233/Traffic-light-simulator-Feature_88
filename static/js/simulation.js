@@ -142,14 +142,24 @@ class TrafficSimulation {
     animate() {
         if (!this.running) return;
         
-        // Update vehicle positions
+        // Update traffic lights state
+        this.updateTrafficLights();
+        
+        // Update vehicles
         this.vehicles.forEach(vehicle => {
             if (!vehicle.waiting) {
-                vehicle.mesh.position.x += vehicle.currentSpeed.dx;
-                vehicle.mesh.position.z += vehicle.currentSpeed.dy;
-                
+                // Проверяем светофоры перед движением
                 this.checkTrafficLights(vehicle);
-                this.checkCollisions(vehicle);
+                
+                // Если не ждем, двигаемся
+                if (!vehicle.waiting) {
+                    vehicle.mesh.position.x += vehicle.currentSpeed.dx;
+                    vehicle.mesh.position.z += vehicle.currentSpeed.dy;
+                    this.checkCollisions(vehicle);
+                }
+            } else {
+                // Повторная проверка светофора для ждущих машин
+                this.checkTrafficLights(vehicle);
             }
         });
         
@@ -234,38 +244,32 @@ class TrafficSimulation {
         const TRAFFIC_LIGHT_ZONE = 20;
         const STOP_LINE = 10;
         
-        // Определяем зону действия светофора
-        const inIntersection = (
-            Math.abs(vehicle.mesh.position.x) < TRAFFIC_LIGHT_ZONE &&
-            Math.abs(vehicle.mesh.position.z) < TRAFFIC_LIGHT_ZONE
-        );
+        // Проверяем положение машины относительно перекрестка
+        const position = vehicle.mesh.position;
+        const beforeIntersection = 
+            (vehicle.direction === 'north' && position.z > STOP_LINE) ||
+            (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
+            (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
+            (vehicle.direction === 'west' && position.x > STOP_LINE);
         
-        // Проверяем, находится ли машина перед стоп-линией
-        const beforeStopLine = {
-            north: vehicle.mesh.position.z > STOP_LINE,
-            south: vehicle.mesh.position.z < -STOP_LINE,
-            east: vehicle.mesh.position.x < -STOP_LINE,
-            west: vehicle.mesh.position.x > STOP_LINE
-        }[vehicle.direction];
+        // Получаем состояние светофора для данного направления
+        const lightState = this.trafficLights[vehicle.direction].state;
         
-        // Определяем цвет светофора для направления
-        const lightState = {
-            north: this.trafficLights.north.state,
-            south: this.trafficLights.south.state,
-            east: this.trafficLights.east.state,
-            west: this.trafficLights.west.state
-        }[vehicle.direction];
-        
-        // Останавливаем машину если она перед светофором и сигнал не зеленый
-        if (beforeStopLine && lightState !== 'green') {
-            vehicle.waiting = true;
-            vehicle.currentSpeed.dx = 0;
-            vehicle.currentSpeed.dy = 0;
-        } else if (!inIntersection) {
+        if (beforeIntersection) {
+            if (lightState === 'red' || lightState === 'yellow') {
+                // Остановка на красный или желтый
+                vehicle.waiting = true;
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
+            } else if (lightState === 'green') {
+                // Движение на зеленый
+                vehicle.waiting = false;
+                vehicle.currentSpeed = {...vehicle.maxSpeed};
+            }
+        } else {
+            // Если машина уже проехала стоп-линию, позволяем ей продолжить движение
             vehicle.waiting = false;
-            // Постепенно восстанавливаем скорость
-            vehicle.currentSpeed.dx += (vehicle.maxSpeed.dx - vehicle.currentSpeed.dx) * 0.1;
-            vehicle.currentSpeed.dy += (vehicle.maxSpeed.dy - vehicle.currentSpeed.dy) * 0.1;
+            vehicle.currentSpeed = {...vehicle.maxSpeed};
         }
     }
 

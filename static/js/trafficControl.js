@@ -177,26 +177,30 @@ class TrafficController {
                 const trafficData = this.simulation.getTrafficData();
                 const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
                 
-                // North-South зеленый
+                console.log('Switching lights - NS Green');
                 await this.smoothTransition('ns', 'green');
                 await this.delay(nsGreenTime);
                 
-                // Желтый для North-South
+                console.log('Switching lights - NS Yellow');
                 await this.smoothTransition('ns', 'yellow');
                 await this.delay(this.yellowTime);
                 
-                // East-West зеленый
+                console.log('Switching lights - NS Red, EW Green');
+                await this.smoothTransition('ns', 'red');
                 await this.smoothTransition('ew', 'green');
                 await this.delay(ewGreenTime);
                 
-                // Желтый для East-West
+                console.log('Switching lights - EW Yellow');
                 await this.smoothTransition('ew', 'yellow');
                 await this.delay(this.yellowTime);
+                
+                console.log('Switching lights - EW Red');
+                await this.smoothTransition('ew', 'red');
                 
                 this.updateStats(trafficData);
             } catch (error) {
                 console.error('Error in control cycle:', error);
-                await this.delay(1000); // Пауза перед повторной попыткой
+                await this.delay(1000);
             }
         }
     }
