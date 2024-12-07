@@ -369,7 +369,6 @@ class TrafficSimulation {
 
     checkCollisions(vehicle) {
         const SAFE_DISTANCE = 45;
-        const SLOW_DISTANCE = 60;
         const INTERSECTION_ZONE = 10;
         
         // Проверяем, находится ли машина в зоне перекрестка
@@ -377,28 +376,49 @@ class TrafficSimulation {
                               Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE;
         
         if (inIntersection) {
-            // В перекрестке всегда движемся, если есть разрешающий сигнал
+            // В перекрестке продолжаем движение без остановки
             return;
         }
         
-        // Проверка коллизий с другими машинами
+        // Проверка только машин впереди в той же полосе
+        let carAhead = null;
+        let minDistance = Infinity;
+        
         this.vehicles.forEach(other => {
-            if (other === vehicle) return;
+            if (other === vehicle || other.direction !== vehicle.direction || other.lane !== vehicle.lane) return;
             
-            const distance = Math.sqrt(
-                Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
-                Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
+            // Проверяем только машины впереди
+            const isAhead = (
+                (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
+                (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
+                (vehicle.direction === 'east' && other.mesh.position.x > vehicle.mesh.position.x) ||
+                (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
             );
             
-            // Учитываем направление движения и повороты
-            if (this.isInSamePath(vehicle, other) && distance < SAFE_DISTANCE) {
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
-            } else if (distance < SLOW_DISTANCE) {
-                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.5;
-                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.5;
+            if (isAhead) {
+                const distance = Math.sqrt(
+                    Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
+                    Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
+                );
+                
+                if (distance < minDistance) {
+                    minDistance = distance;
+                    carAhead = other;
+                }
             }
         });
+        
+        // Регулируем скорость только если есть машина впереди
+        if (carAhead) {
+            if (minDistance < SAFE_DISTANCE) {
+                vehicle.currentSpeed.dx = carAhead.currentSpeed.dx;
+                vehicle.currentSpeed.dy = carAhead.currentSpeed.dy;
+            } else {
+                // Постепенное ускорение до максимальной скорости
+                vehicle.currentSpeed.dx += (vehicle.maxSpeed.dx - vehicle.currentSpeed.dx) * 0.1;
+                vehicle.currentSpeed.dy += (vehicle.maxSpeed.dy - vehicle.currentSpeed.dy) * 0.1;
+            }
+        }
     }
 
     startSimulation() {
@@ -418,19 +438,33 @@ class TrafficSimulation {
     }
 
     getTrafficData() {
-        const nsVehicles = this.vehicles.filter(v => v.direction === 'north' || v.direction === 'south');
-        const ewVehicles = this.vehicles.filter(v => v.direction === 'east' || v.direction === 'west');
+        // Зоны подсчета перед перекрестком
+        const COUNT_ZONE = 30;
+        
+        const nsVehicles = this.vehicles.filter(v => {
+            const inCountZone = Math.abs(v.mesh.position.z) > COUNT_ZONE && 
+                              Math.abs(v.mesh.position.x) < 20;
+            return (v.direction === 'north' || v.direction === 'south') && inCountZone;
+        });
+        
+        const ewVehicles = this.vehicles.filter(v => {
+            const inCountZone = Math.abs(v.mesh.position.x) > COUNT_ZONE && 
+                              Math.abs(v.mesh.position.z) < 20;
+            return (v.direction === 'east' || v.direction === 'west') && inCountZone;
+        });
         
         return {
             ns: {
                 count: nsVehicles.length,
-                waiting: nsVehicles.filter(v => v.waiting).length,
-                avgSpeed: nsVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dy), 0) / Math.max(nsVehicles.length, 1)
+                waiting: nsVehicles.filter(v => Math.abs(v.currentSpeed.dy) < 0.1).length,
+                avgSpeed: nsVehicles.reduce((sum, v) => 
+                    sum + Math.abs(v.currentSpeed.dy), 0) / Math.max(nsVehicles.length, 1)
             },
             ew: {
                 count: ewVehicles.length,
-                waiting: ewVehicles.filter(v => v.waiting).length,
-                avgSpeed: ewVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dx), 0) / Math.max(ewVehicles.length, 1)
+                waiting: ewVehicles.filter(v => Math.abs(v.currentSpeed.dx) < 0.1).length,
+                avgSpeed: ewVehicles.reduce((sum, v) => 
+                    sum + Math.abs(v.currentSpeed.dx), 0) / Math.max(ewVehicles.length, 1)
             }
         };
     }
