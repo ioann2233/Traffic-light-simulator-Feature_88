@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Traffic Light Simulation</title>
+    <link rel="stylesheet" href="https://cdn.replit.com/agent/bootstrap-agent-dark-theme.min.css">
+    <link rel="stylesheet" href="/static/css/styles.css">
+</head>
+<body>
+    <div class="container mt-4">
+        <h1 class="text-center mb-4">Smart Traffic Light Simulation</h1>
+        
+        <div class="row">
+            <div class="col-md-8">
+                <div class="canvas-container">
+                    <canvas id="simulationCanvas" width="800" height="600"></canvas>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Traffic Statistics</h5>
+                    </div>
+                    <div class="card-body">
+                        <div id="stats">
+                            <p>North-South Queue: <span id="ns-queue">0</span></p>
+                            <p>East-West Queue: <span id="ew-queue">0</span></p>
+                            <p>Average Speed NS: <span id="ns-speed">0</span> km/h</p>
+                            <p>Average Speed EW: <span id="ew-speed">0</span> km/h</p>
+                        </div>
+                        <canvas id="trafficChart" width="300" height="200"></canvas>
+                    </div>
+                </div>
+                <div class="mt-3">
+                    <button id="exportAlgorithm" class="btn btn-primary">Export Algorithm</button>
+                    <button id="toggleSimulation" class="btn btn-secondary">Pause/Resume</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="/static/js/simulation.js"></script>
+    <script src="/static/js/trafficControl.js"></script>
+    <script src="/static/js/visualization.js"></script>
+</body>
+</html>
