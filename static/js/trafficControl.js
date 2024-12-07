@@ -98,22 +98,56 @@ class TrafficController {
     }
 
     startAutomaticControl() {
+        this.currentPhase = {
+            direction: 'ns',
+            state: 'green',
+            timeLeft: 60000  // Начальное время - 60 секунд
+        };
+        
         setInterval(() => {
             const trafficData = this.simulation.getTrafficData();
-            const currentState = this.rlAgent.getState(trafficData);
-            const action = this.rlAgent.getAction(currentState);
             
-            // Обновляем Q-таблицу
-            if (this.lastState && this.lastAction) {
-                const reward = this.calculateReward(trafficData);
-                this.rlAgent.updateQ(this.lastState, this.lastAction, reward, currentState);
+            // Обновляем время фазы
+            this.currentPhase.timeLeft -= 1000;
+            
+            if (this.currentPhase.timeLeft <= 0) {
+                if (this.currentPhase.state === 'green') {
+                    // Переход на желтый
+                    this.currentPhase.state = 'yellow';
+                    this.currentPhase.timeLeft = 5000; // 5 секунд на желтый
+                    this.setLights(this.currentPhase.direction, 'yellow');
+                } else if (this.currentPhase.state === 'yellow') {
+                    // Переход на красный и смена направления
+                    this.currentPhase.state = 'red';
+                    this.setLights(this.currentPhase.direction, 'red');
+                    
+                    // Меняем направление
+                    this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
+                    
+                    // Вычисляем оптимальное время следующей фазы
+                    const state = this.rlAgent.getState(trafficData);
+                    const action = this.rlAgent.getAction(state);
+                    const waitingCars = (this.currentPhase.direction === 'ns') 
+                        ? trafficData.ns.waiting 
+                        : trafficData.ew.waiting;
+                        
+                    // Устанавливаем время в пределах от 20 до 160 секунд
+                    const baseTime = Math.max(20000, Math.min(160000, waitingCars * 10000));
+                    this.currentPhase.timeLeft = baseTime;
+                    
+                    // Устанавливаем зеленый для нового направления
+                    this.setLights(this.currentPhase.direction, 'green');
+                    this.currentPhase.state = 'green';
+                    
+                    // Обновляем Q-таблицу
+                    if (this.lastState && this.lastAction) {
+                        const reward = this.calculateReward(trafficData);
+                        this.rlAgent.updateQ(this.lastState, this.lastAction, reward, state);
+                    }
+                    this.lastState = state;
+                    this.lastAction = action;
+                }
             }
-            
-            this.lastState = currentState;
-            this.lastAction = action;
-            
-            // Применяем действие
-            this.updateTrafficLights(action);
         }, 1000);
     }
 
@@ -145,16 +179,16 @@ class TrafficController {
 
     calculateReward(trafficData) {
         // Штраф за каждую ожидающую машину
-        const waitingPenalty = (trafficData.ns.waiting + trafficData.ew.waiting) * -1;
+        const waitingPenalty = (trafficData.ns.waiting + trafficData.ew.waiting) * -2;
         
         // Награда за пропущенные машины
-        const throughputReward = (trafficData.ns.count + trafficData.ew.count) * 2;
+        const throughputReward = (trafficData.ns.count + trafficData.ew.count) * 3;
         
-        // Дополнительный штраф за заторы с нескольких сторон
-        const multiDirectionPenalty = 
-            (trafficData.ns.waiting > 0 && trafficData.ew.waiting > 0) ? -10 : 0;
+        // Дополнительный штраф за длительные заторы
+        const congestionPenalty = 
+            (trafficData.ns.waiting > 5 || trafficData.ew.waiting > 5) ? -15 : 0;
         
-        return Math.exp((waitingPenalty + throughputReward + multiDirectionPenalty) / 20);
+        return Math.exp((waitingPenalty + throughputReward + congestionPenalty) / 25);
     }
 }
 
