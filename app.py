@@ -87,27 +87,28 @@ def download():
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
-        # Симуляция данных с камер
-        simulated_data = {
-            'camera_id': request.json.get('camera_id', 'cam1'),
+        data = request.json
+        camera_id = data.get('camera_id', 'cam1')
+        
+        # Симулируем данные более реалистично
+        ns_count = random.randint(1, 5)
+        ew_count = random.randint(1, 5)
+        
+        response_data = {
+            'camera_id': camera_id,
             'ns': {
-                'count': random.randint(0, 10),
-                'waiting': random.randint(0, 5),
-                'avgSpeed': random.uniform(0.3, 0.8)
+                'count': ns_count,
+                'waiting': random.randint(0, ns_count),
+                'avgSpeed': random.uniform(0.4, 0.8)
             },
             'ew': {
-                'count': random.randint(0, 10),
-                'waiting': random.randint(0, 5),
-                'avgSpeed': random.uniform(0.3, 0.8)
-            },
-            'pedestrians': {
-                'waiting': random.randint(0, 3)
-            },
-            'trams': {
-                'approaching': random.randint(0, 1)
+                'count': ew_count,
+                'waiting': random.randint(0, ew_count),
+                'avgSpeed': random.uniform(0.4, 0.8)
             }
         }
-        return jsonify(simulated_data)
+        
+        return jsonify(response_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 400
 

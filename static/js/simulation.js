@@ -247,8 +247,9 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = forcedDirection || directions[Math.floor(Math.random() * directions.length)];
         
+        // Изменение расстояния между полосами и их положения
         const lane = Math.floor(Math.random() * 2);
-        const laneOffset = lane * 8;
+        const laneOffset = lane * 12; // Увеличенное расстояние между полосами
         
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
@@ -259,35 +260,37 @@ class TrafficSimulation {
             maxSpeed: { dx: 0, dy: 0 }
         };
 
+        // Корректное позиционирование машин по полосам
         switch(direction) {
             case 'north':
-                vehicle.mesh.position.set(-8 + laneOffset, 2, 150);
+                vehicle.mesh.position.set(-12 + laneOffset, 2, 150);
                 vehicle.mesh.rotation.y = Math.PI;
-                vehicle.maxSpeed = { dx: 0, dy: -0.8 };
+                vehicle.maxSpeed = { dx: 0, dy: -0.5 };
                 break;
             case 'south':
-                vehicle.mesh.position.set(8 - laneOffset, 2, -150);
-                vehicle.maxSpeed = { dx: 0, dy: 0.8 };
+                vehicle.mesh.position.set(12 - laneOffset, 2, -150);
+                vehicle.maxSpeed = { dx: 0, dy: 0.5 };
                 break;
             case 'east':
-                vehicle.mesh.position.set(-150, 2, -8 + laneOffset);
+                vehicle.mesh.position.set(-150, 2, -12 + laneOffset);
                 vehicle.mesh.rotation.y = Math.PI / 2;
-                vehicle.maxSpeed = { dx: 0.8, dy: 0 };
+                vehicle.maxSpeed = { dx: 0.5, dy: 0 };
                 break;
             case 'west':
-                vehicle.mesh.position.set(150, 2, 8 - laneOffset);
+                vehicle.mesh.position.set(150, 2, 12 - laneOffset);
                 vehicle.mesh.rotation.y = -Math.PI / 2;
-                vehicle.maxSpeed = { dx: -0.8, dy: 0 };
+                vehicle.maxSpeed = { dx: -0.5, dy: 0 };
                 break;
         }
 
+        // Увеличение безопасной дистанции при спавне
         const isSafeToSpawn = !this.vehicles.some(other => {
             if (other.direction !== direction || other.lane !== lane) return false;
             const distance = Math.sqrt(
                 Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
                 Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
             );
-            return distance < 25;
+            return distance < 30; // Увеличенная безопасная дистанция
         });
 
         if (isSafeToSpawn) {
@@ -330,8 +333,11 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 20;
-        const SLOW_DISTANCE = 35;
+        const SAFE_DISTANCE = 25;  // Увеличенная безопасная дистанция
+        const SLOW_DISTANCE = 40;  // Увеличенная дистанция замедления
+        
+        let shouldStop = false;
+        let shouldSlow = false;
         
         this.vehicles.forEach(other => {
             if (other !== vehicle && 
@@ -344,15 +350,21 @@ class TrafficSimulation {
                 );
                 
                 if (distance < SAFE_DISTANCE) {
-                    vehicle.waiting = true;
-                    vehicle.currentSpeed.dx = 0;
-                    vehicle.currentSpeed.dy = 0;
+                    shouldStop = true;
                 } else if (distance < SLOW_DISTANCE) {
-                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.5;
-                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.5;
+                    shouldSlow = true;
                 }
             }
         });
+        
+        if (shouldStop) {
+            vehicle.waiting = true;
+            vehicle.currentSpeed.dx = 0;
+            vehicle.currentSpeed.dy = 0;
+        } else if (shouldSlow) {
+            vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
+            vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+        }
     }
 
     startSimulation() {
