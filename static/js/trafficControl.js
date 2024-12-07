@@ -110,11 +110,15 @@ class TrafficController {
     }
 
     calculateReward(trafficData) {
-        // Награда зависит от уменьшения количества машин в заторах
+        const totalVehicles = trafficData.ns.count + trafficData.ew.count;
         const totalWaiting = trafficData.ns.waiting + trafficData.ew.waiting;
         const avgSpeed = (trafficData.ns.avgSpeed + trafficData.ew.avgSpeed) / 2;
         
-        return -totalWaiting + avgSpeed;
+        // Reward depends on:
+        // 1. Number of passed vehicles (positive factor)
+        // 2. Number of waiting vehicles (negative factor)
+        // 3. Average traffic speed (positive factor)
+        return totalVehicles * 2 - totalWaiting * 1.5 + avgSpeed * 3;
     }
 
     async controlCycle() {

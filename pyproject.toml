@@ -8,4 +8,6 @@ dependencies = [
     "flask>=3.1.0",
     "flask-sqlalchemy>=3.1.1",
     "psycopg2-binary>=2.9.10",
+    "opencv-python>=4.10.0.84",
+    "numpy>=2.1.3",
 ]
