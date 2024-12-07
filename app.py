@@ -2,6 +2,7 @@ from flask import Flask, render_template, jsonify, send_file, request
 import cv2
 import numpy as np
 import io
+import random
 
 app = Flask(__name__)
 
@@ -86,16 +87,42 @@ def download():
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
-        frame = request.files['frame'].read()
-        # Convert bytes to numpy array
-        nparr = np.frombuffer(frame, np.uint8)
-        img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
-        
-        # Process frame
-        traffic_data = process_camera_frame(img)
-        return jsonify(traffic_data)
+        # Симуляция данных с камер
+        simulated_data = {
+            'camera_id': request.json.get('camera_id', 'cam1'),
+            'ns': {
+                'count': random.randint(0, 10),
+                'waiting': random.randint(0, 5),
+                'avgSpeed': random.uniform(0.3, 0.8)
+            },
+            'ew': {
+                'count': random.randint(0, 10),
+                'waiting': random.randint(0, 5),
+                'avgSpeed': random.uniform(0.3, 0.8)
+            },
+            'pedestrians': {
+                'waiting': random.randint(0, 3)
+            },
+            'trams': {
+                'approaching': random.randint(0, 1)
+            }
+        }
+        return jsonify(simulated_data)
     except Exception as e:
         return jsonify({'error': str(e)}), 400
+
+@app.route('/api/simulate-camera', methods=['GET'])
+def simulate_camera():
+    camera_id = request.args.get('camera_id', 'cam1')
+    return jsonify({
+        'camera_id': camera_id,
+        'location': {
+            'lat': 55.7558,
+            'lon': 37.6173
+        },
+        'direction': random.choice(['north', 'south', 'east', 'west'])
+    })
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

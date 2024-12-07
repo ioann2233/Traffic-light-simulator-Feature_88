@@ -82,9 +82,60 @@ class TrafficController {
         this.simulation = simulation;
         this.minGreenTime = 5000;
         this.maxGreenTime = 15000;
-        this.yellowTime = 3000; // Увеличить время желтого сигнала
-        this.transitionDelay = 500; // Задержка между сигналами
+        this.yellowTime = 3000;
+        this.transitionDelay = 500;
         
+        // Добавляем массив для хранения данных с камер
+        this.cameraData = {
+            cameras: {},
+            lastUpdate: Date.now()
+        };
+        
+    // Метод для обновления данных с камер
+    updateCameraData(cameraId, data) {
+        this.cameraData.cameras[cameraId] = {
+            ...data,
+            timestamp: Date.now()
+        };
+    }
+
+    // Получение агрегированных данных со всех камер
+    getAggregatedTrafficData() {
+        const now = Date.now();
+        const validCameras = Object.entries(this.cameraData.cameras)
+            .filter(([_, data]) => now - data.timestamp < 5000); // Используем данные не старше 5 секунд
+
+        if (validCameras.length === 0) {
+            return this.simulation.getTrafficData(); // Fallback на симуляцию
+        }
+
+        // Агрегируем данные со всех камер
+        return validCameras.reduce((acc, [_, data]) => {
+            return {
+                ns: {
+                    count: acc.ns.count + data.ns.count,
+                    waiting: acc.ns.waiting + data.ns.waiting,
+                    avgSpeed: (acc.ns.avgSpeed + data.ns.avgSpeed) / 2
+                },
+                ew: {
+                    count: acc.ew.count + data.ew.count,
+                    waiting: acc.ew.waiting + data.ew.waiting,
+                    avgSpeed: (acc.ew.avgSpeed + data.ew.avgSpeed) / 2
+                },
+                pedestrians: {
+                    waiting: (acc.pedestrians?.waiting || 0) + (data.pedestrians?.waiting || 0)
+                },
+                trams: {
+                    approaching: (acc.trams?.approaching || 0) + (data.trams?.approaching || 0)
+                }
+            };
+        }, {
+            ns: { count: 0, waiting: 0, avgSpeed: 0 },
+            ew: { count: 0, waiting: 0, avgSpeed: 0 },
+            pedestrians: { waiting: 0 },
+            trams: { approaching: 0 }
+        });
+    }
         this.qLearning = new QLearning();
         this.lastState = null;
         this.lastAction = null;
@@ -110,15 +161,14 @@ class TrafficController {
     }
 
     calculateReward(trafficData) {
-        const totalVehicles = trafficData.ns.count + trafficData.ew.count;
-        const totalWaiting = trafficData.ns.waiting + trafficData.ew.waiting;
-        const avgSpeed = (trafficData.ns.avgSpeed + trafficData.ew.avgSpeed) / 2;
+        const totalWaiting = 
+            trafficData.ns.waiting + 
+            trafficData.ew.waiting + 
+            (trafficData.pedestrians?.waiting || 0) * 2 + // Пешеходы имеют больший вес
+            (trafficData.trams?.approaching || 0) * 3;    // Трамваи имеют наивысший приоритет
         
-        // Reward depends on:
-        // 1. Number of passed vehicles (positive factor)
-        // 2. Number of waiting vehicles (negative factor)
-        // 3. Average traffic speed (positive factor)
-        return totalVehicles * 2 - totalWaiting * 1.5 + avgSpeed * 3;
+        // Награда тем больше, чем меньше ожидающих
+        return Math.exp(-totalWaiting / 10);
     }
 
     async controlCycle() {
