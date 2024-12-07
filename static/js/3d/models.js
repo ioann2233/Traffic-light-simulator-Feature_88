@@ -66,17 +66,75 @@ class TrafficModels {
     }
 
     static createVehicle() {
-        const vehicleGeometry = new THREE.BoxGeometry(8, 4, 12);
-        const vehicleMaterial = new THREE.MeshStandardMaterial({ 
-            color: Math.random() * 0xffffff,
-            roughness: 0.5,
-            metalness: 0.5
+        const carColors = [0xff0000, 0x00ff00, 0x0000ff, 0xffff00, 0xff00ff, 0x00ffff];
+        const group = new THREE.Group();
+        
+        // Основной корпус
+        const bodyGeometry = new THREE.BoxGeometry(4, 2, 8);
+        const bodyMaterial = new THREE.MeshStandardMaterial({
+            color: carColors[Math.floor(Math.random() * carColors.length)],
+            metalness: 0.7,
+            roughness: 0.3
         });
-        const vehicle = new THREE.Mesh(vehicleGeometry, vehicleMaterial);
-        vehicle.position.y = 2;
-        vehicle.castShadow = true;
-        vehicle.receiveShadow = true;
-        return vehicle;
+        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
+        body.position.y = 1;
+        group.add(body);
+        
+        // Кабина
+        const cabinGeometry = new THREE.BoxGeometry(3.5, 1.5, 4);
+        const cabinMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            metalness: 0.8,
+            roughness: 0.2
+        });
+        const cabin = new THREE.Mesh(cabinGeometry, cabinMaterial);
+        cabin.position.set(0, 2.5, -1);
+        group.add(cabin);
+        
+        // Колеса
+        const wheelGeometry = new THREE.CylinderGeometry(0.8, 0.8, 0.5, 16);
+        const wheelMaterial = new THREE.MeshStandardMaterial({
+            color: 0x333333,
+            metalness: 0.5,
+            roughness: 0.7
+        });
+        
+        const wheelPositions = [
+            [-2, 0, -2.5],
+            [2, 0, -2.5],
+            [-2, 0, 2.5],
+            [2, 0, 2.5]
+        ];
+        
+        wheelPositions.forEach(position => {
+            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
+            wheel.rotation.z = Math.PI / 2;
+            wheel.position.set(...position);
+            group.add(wheel);
+        });
+        
+        // Фары
+        const headlightGeometry = new THREE.SphereGeometry(0.3, 16, 16);
+        const headlightMaterial = new THREE.MeshStandardMaterial({
+            color: 0xffffff,
+            emissive: 0xffffff,
+            emissiveIntensity: 0.5
+        });
+        
+        const headlightPositions = [
+            [-1.5, 1, -4],
+            [1.5, 1, -4]
+        ];
+        
+        headlightPositions.forEach(position => {
+            const headlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
+            headlight.position.set(...position);
+            group.add(headlight);
+        });
+        
+        group.castShadow = true;
+        group.receiveShadow = true;
+        return group;
     }
     
     static createCameraView() {

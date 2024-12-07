@@ -87,12 +87,15 @@ def download():
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
-        data = request.json
+        data = request.get_json()
+        if data is None:
+            data = {'camera_id': 'cam1'}
+            
         camera_id = data.get('camera_id', 'cam1')
         
-        # Генерация более реалистичных данных
-        ns_count = random.randint(2, 8)
-        ew_count = random.randint(2, 8)
+        # Генерация реалистичных данных
+        ns_count = random.randint(3, 10)
+        ew_count = random.randint(3, 10)
         
         ns_waiting = min(random.randint(0, ns_count), ns_count)
         ew_waiting = min(random.randint(0, ew_count), ew_count)
@@ -115,10 +118,9 @@ def update_camera_data():
     except Exception as e:
         print(f"Error in update_camera_data: {str(e)}")
         return jsonify({
-            'camera_id': 'cam1',
-            'ns': {'count': 3, 'waiting': 1, 'avgSpeed': 0.6},
-            'ew': {'count': 3, 'waiting': 1, 'avgSpeed': 0.6}
-        }), 200  # Возвращаем 200 вместо 400 для избежания ошибок
+            'ns': {'count': 5, 'waiting': 2, 'avgSpeed': 0.6},
+            'ew': {'count': 5, 'waiting': 2, 'avgSpeed': 0.6}
+        })
 
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():

@@ -331,6 +331,7 @@ class TrafficSimulation {
 
     checkTrafficLights(vehicle) {
         const STOP_LINE = 15;
+        const SLOW_DOWN_DISTANCE = 30;
         const INTERSECTION_ZONE = 10;
         
         const position = vehicle.mesh.position;
@@ -338,28 +339,44 @@ class TrafficSimulation {
                               Math.abs(position.z) < INTERSECTION_ZONE;
         
         if (inIntersection) {
-            // Машины в перекрестке всегда продолжают движение на максимальной скорости
-            vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
+            // В перекрестке движемся с текущей скоростью
             return;
         }
         
-        const beforeStopLine = 
-            (vehicle.direction === 'north' && position.z > STOP_LINE) ||
-            (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
-            (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
-            (vehicle.direction === 'west' && position.x > STOP_LINE);
+        const distanceToIntersection = Math.min(
+            Math.abs(position.x),
+            Math.abs(position.z)
+        );
         
-        if (beforeStopLine) {
-            const lightState = this.trafficLights[vehicle.direction].state;
+        const lightState = this.trafficLights[vehicle.direction].state;
+        
+        if (distanceToIntersection < STOP_LINE) {
             if (lightState === 'red') {
-                vehicle.waiting = true;
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
+                // Плавная остановка перед стоп-линией
+                const slowDownFactor = Math.max(0, (distanceToIntersection / STOP_LINE));
+                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
+                if (distanceToIntersection < 1) {
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
+                }
+            } else if (lightState === 'yellow') {
+                // На желтый замедляемся
+                const slowDownFactor = 0.3;
+                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
             } else {
+                // На зеленый едем
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};
             }
+        } else if (distanceToIntersection < SLOW_DOWN_DISTANCE && lightState === 'red') {
+            // Начинаем замедляться заранее при красном
+            const slowDownFactor = (distanceToIntersection - STOP_LINE) / 
+                                 (SLOW_DOWN_DISTANCE - STOP_LINE);
+            vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+            vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
         }
     }
 
