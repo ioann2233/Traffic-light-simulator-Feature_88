@@ -129,7 +129,8 @@ class TrafficSimulation {
         const SAFE_DISTANCE = 30; // Уменьшенное безопасное расстояние
         const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
         const MAX_SPEED = 60; // Maximum speed in km/h
-        const ACCELERATION_RATE = 0.5; // Acceleration in km/h per frame
+        const ACCELERATION_RATE = 0.1;  // Уменьшить скорость ускорения
+        const DECELERATION_RATE = 0.2;  // Добавить отдельный параметр для торможения
         const SPEED_CHANGE_RATE = 0.8; // Speed change rate
         const MIN_SPEED_RATIO = 0.3; // Увеличенная минимальная скорость
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
@@ -164,28 +165,20 @@ class TrafficSimulation {
                 Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
             );
 
-            // Strict red light check and acceleration handling
-            const isRedLight = !canPass && isAtStopLine;
+            // В методе updateVehicles() изменить проверку красного света
+            const isRedLight = !canPass && isApproachingIntersection;
             if (isRedLight) {
-                // Вместо полной остановки - замедление
-                const slowDownSpeed = Math.max(
-                    Math.abs(vehicle.maxSpeed.dx) * 0.3,
-                    Math.abs(vehicle.maxSpeed.dy) * 0.3
-                );
+                // Вместо остановки - очень медленное движение
+                const crawlSpeed = 0.5; // Минимальная скорость движения
                 
-                // Плавное замедление
-                vehicle.currentSpeed.dx = vehicle.currentSpeed.dx * 0.9;
-                vehicle.currentSpeed.dy = vehicle.currentSpeed.dy * 0.9;
-                
-                // Минимальная скорость движения
-                if (Math.abs(vehicle.currentSpeed.dx) < slowDownSpeed) {
-                    vehicle.currentSpeed.dx = slowDownSpeed * Math.sign(vehicle.maxSpeed.dx);
+                if (Math.abs(vehicle.currentSpeed.dx) > crawlSpeed) {
+                    vehicle.currentSpeed.dx = crawlSpeed * Math.sign(vehicle.maxSpeed.dx);
                 }
-                if (Math.abs(vehicle.currentSpeed.dy) < slowDownSpeed) {
-                    vehicle.currentSpeed.dy = slowDownSpeed * Math.sign(vehicle.maxSpeed.dy);
+                if (Math.abs(vehicle.currentSpeed.dy) > crawlSpeed) {
+                    vehicle.currentSpeed.dy = crawlSpeed * Math.sign(vehicle.maxSpeed.dy);
                 }
                 
-                vehicle.waiting = false;  // Машина не ждет, а движется
+                vehicle.waiting = true;
                 return true;
             } else if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0 && canPass) {
                 vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);

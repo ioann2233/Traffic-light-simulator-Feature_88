@@ -1,9 +1,9 @@
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
-        this.minGreenTime = 3000;   // Уменьшено с 5000 до 3000 мс
-        this.maxGreenTime = 130000; // 130 секунд максимум
-        this.yellowTime = 2000;     // Уменьшено с 3000 до 2000 мс
+        this.minGreenTime = 2000;   // Уменьшить минимальное время
+        this.maxGreenTime = 10000;  // Уменьшить максимальное время
+        this.yellowTime = 1000;     // Уменьшить время желтого
         
         this.startControl();
     }
@@ -11,17 +11,17 @@ class TrafficController {
     calculateGreenTime(trafficData) {
         const { ns, ew } = trafficData;
         
-        // Изменить порог с 20 на 10 машин
-        if (ns.waiting > 10) {  // Было 20, стало 10
+        // Уменьшить порог переключения до 5 машин
+        if (ns.waiting > 5) {
             return {
-                nsGreenTime: Math.min(130000, this.maxGreenTime),
+                nsGreenTime: 10000,
                 ewGreenTime: this.minGreenTime
             };
         }
-        if (ew.waiting > 10) {  // Было 20, стало 10
+        if (ew.waiting > 5) {
             return {
                 nsGreenTime: this.minGreenTime,
-                ewGreenTime: Math.min(130000, this.maxGreenTime)
+                ewGreenTime: 10000
             };
         }
         
