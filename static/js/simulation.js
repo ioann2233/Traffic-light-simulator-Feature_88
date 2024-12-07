@@ -1,53 +1,42 @@
 class TrafficSimulation {
     constructor() {
-        this.scene = new Scene3D(document.getElementById('scene3d'));
+        // Initialize 3D scene
+        this.scene3D = new Scene3D(document.getElementById('scene3d'));
+
+        // Initialize state
         this.vehicles = [];
-        this.pedestrians = [];
+        this.running = true;
         this.trafficLights = {
             north: { state: 'red' },
             south: { state: 'red' },
             east: { state: 'green' },
             west: { state: 'green' }
         };
-        
-        this.setupScene();
-        this.startCameraUpdates();
-    }
-    
-    setupScene() {
-        // Добавляем дорогу
-        const road = TrafficModels.createRoad();
-        this.scene.addObject(road);
-        
-        // Добавляем светофоры
-        ['north', 'south', 'east', 'west'].forEach(direction => {
-            const light = TrafficModels.createTrafficLight(direction);
-            const position = this.getTrafficLightPosition(direction);
-            light.position.set(position.x, position.y, position.z);
-            light.rotation.y = position.rotation;
-            this.scene.addObject(light);
-            this[direction + 'Light'] = light;
-        });
-        
-        // Запускаем симуляцию
+
+        // Create base scene
+        this.initializeScene();
+        this.setupTrafficLightClicks();
         this.startSimulation();
-    }
-    
-    getTrafficLightPosition(direction) {
-        const positions = {
-            north: { x: 0, y: 0, z: -20, rotation: 0 },
-            south: { x: 0, y: 0, z: 20, rotation: Math.PI },
-            east: { x: 20, y: 0, z: 0, rotation: -Math.PI / 2 },
-            west: { x: -20, y: 0, z: 0, rotation: Math.PI / 2 }
-        };
-        return positions[direction];
-    }
-    
-    startCameraUpdates() {
-        // Запускаем периодическое обновление данных с камер
+        
+        // Start periodic data updates
         setInterval(() => this.fetchCameraData(), 2000);
+        
+        // Добавляем интервал обновления светофоров
+        setInterval(() => this.updateTrafficLights(), 100);
     }
     
+    async fetchIntersectionInfo() {
+        try {
+            const response = await fetch('/api/intersection-info');
+            const data = await response.json();
+            
+            document.getElementById('intersection-name').textContent = data.name;
+            document.getElementById('camera-ip-ns').textContent = data.cameras.ns.ip;
+            document.getElementById('camera-ip-ew').textContent = data.cameras.ew.ip;
+        } catch (error) {
+            console.error('Error fetching intersection info:', error);
+        }
+    }
     async fetchCameraData() {
         try {
             const response = await fetch('/api/camera-data', {
@@ -65,11 +54,9 @@ class TrafficSimulation {
             }
             
             const data = await response.json();
-            if (!data || typeof data !== 'object') {
-                throw new Error('Invalid data format received');
-            }
-            
             this.updateTrafficData(data);
+            
+            // Обновляем состояние светофоров на основе данных
             if (window.controller) {
                 window.controller.updateTrafficLights(data);
             }
@@ -87,107 +74,157 @@ class TrafficSimulation {
         }
     }
 
-    updateTrafficData(data) {
-        // Update traffic statistics
-        const nsData = data.ns;
-        const ewData = data.ew;
+    setupTrafficLightClicks() {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
         
-        // Update queue lengths
-        document.getElementById('ns-queue').textContent = nsData.waiting;
-        document.getElementById('ew-queue').textContent = ewData.waiting;
-        
-        // Update speeds
-        document.getElementById('ns-speed').textContent = 
-            Math.round(nsData.avgSpeed * 50) + ' км/ч';
-        document.getElementById('ew-speed').textContent = 
-            Math.round(ewData.avgSpeed * 50) + ' км/ч';
+        document.getElementById('scene3d').addEventListener('click', (event) => {
+            const rect = event.target.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
             
-        // Update intersection info if available
-        if (data.intersection_name) {
-            document.getElementById('intersection-name').textContent = data.intersection_name;
-        }
-        if (data.cameras) {
-            if (data.cameras.ns) {
-                document.getElementById('camera-ip-ns').textContent = data.cameras.ns.ip;
+            raycaster.setFromCamera(mouse, this.scene3D.camera);
+            
+            const intersects = raycaster.intersectObjects(this.scene3D.scene.children, true);
+            
+            for (const intersect of intersects) {
+                // Проверяем, является ли объект частью светофора
+                let trafficLight = intersect.object;
+                while (trafficLight && !trafficLight.userData.direction) {
+                    trafficLight = trafficLight.parent;
+                }
+                
+                if (trafficLight && trafficLight.userData.direction) {
+                    this.handleTrafficLightClick(trafficLight.userData.direction);
+                    break;
+                }
             }
-            if (data.cameras.ew) {
-                document.getElementById('camera-ip-ew').textContent = data.cameras.ew.ip;
-            }
-        }
+        });
     }
-    
-    updateVehicle(vehicle) {
-        // Обновление поворотников
-        const leftSignal = vehicle.mesh.children.find(child => 
-            child.userData.isLeft === true);
-        const rightSignal = vehicle.mesh.children.find(child => 
-            child.userData.isLeft === false);
+
+    handleTrafficLightClick(direction) {
+        const dialog = document.getElementById('trafficLightDialog');
+        dialog.style.display = 'block';
+        
+        window.changeTrafficLight = (newState) => {
+            const nsGroup = ['north', 'south'];
+            const ewGroup = ['east', 'west'];
+            const isNS = nsGroup.includes(direction);
+            const currentGroup = isNS ? nsGroup : ewGroup;
+            const oppositeGroup = isNS ? ewGroup : nsGroup;
             
-        if (vehicle.turning === 'left' && leftSignal) {
-            leftSignal.material.emissiveIntensity = 
-                Math.sin(Date.now() * 0.01) > 0 ? 1 : 0;
-        } else if (vehicle.turning === 'right' && rightSignal) {
-            rightSignal.material.emissiveIntensity = 
-                Math.sin(Date.now() * 0.01) > 0 ? 1 : 0;
+            // Меняем состояние для текущей группы
+            currentGroup.forEach(dir => {
+                this.trafficLights[dir].state = newState;
+            });
+            
+            // Устанавливаем противоположное состояние для другой группы
+            if (newState === 'green') {
+                oppositeGroup.forEach(dir => {
+                    this.trafficLights[dir].state = 'red';
+                });
+            } else if (newState === 'red') {
+                oppositeGroup.forEach(dir => {
+                    this.trafficLights[dir].state = 'green';
+                });
+            }
+            
+            dialog.style.display = 'none';
+        };
+    }
+
+    updateVehiclesFromCamera(data) {
+        // Remove vehicles outside camera view
+        this.vehicles = this.vehicles.filter(vehicle => {
+            const isVisible = this.isInCameraView(vehicle.mesh.position);
+            if (!isVisible) {
+                this.scene3D.removeObject(vehicle.mesh);
+                return false;
+            }
+            return true;
+        });
+
+        // Add new vehicles based on camera data
+        const spawnDirections = {
+            ns: ['north', 'south'],
+            ew: ['east', 'west']
+        };
+
+        if (data.ns && data.ns.count > 0) {
+            spawnDirections.ns.forEach(direction => {
+                for (let i = 0; i < Math.ceil(data.ns.count / 2); i++) {
+                    this.spawnVehicle(direction);
+                }
+            });
+        }
+
+        if (data.ew && data.ew.count > 0) {
+            spawnDirections.ew.forEach(direction => {
+                for (let i = 0; i < Math.ceil(data.ew.count / 2); i++) {
+                    this.spawnVehicle(direction);
+                }
+            });
         }
     }
 
-    startSimulation() {
-        this.running = true;
-        this.animate();
+    isInCameraView(position) {
+        return true;
     }
-    
-    stopSimulation() {
-        this.running = false;
-    }
-    
-    toggleSimulation() {
-        this.running = !this.running;
-        if (this.running) {
-            this.animate();
-        }
-    }
-    
-    getTrafficData() {
-        const nsVehicles = this.vehicles.filter(v => v.direction === 'north' || v.direction === 'south');
-        const ewVehicles = this.vehicles.filter(v => v.direction === 'east' || v.direction === 'west');
+
+    initializeScene() {
+        // Ground
+        const ground = new THREE.Mesh(
+            new THREE.PlaneGeometry(500, 500),
+            new THREE.MeshStandardMaterial({
+                color: 0x1a472a,
+                roughness: 0.8
+            })
+        );
+        ground.rotation.x = -Math.PI / 2;
+        ground.receiveShadow = true;
+        this.scene3D.addObject(ground);
+
+        // Roads
+        const roadNS = TrafficModels.createRoad();
+        this.scene3D.addObject(roadNS);
         
-        return {
-            ns: {
-                count: nsVehicles.length,
-                waiting: nsVehicles.filter(v => v.waiting).length,
-                avgSpeed: nsVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dy), 0) / Math.max(nsVehicles.length, 1)
-            },
-            ew: {
-                count: ewVehicles.length,
-                waiting: ewVehicles.filter(v => v.waiting).length,
-                avgSpeed: ewVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dx), 0) / Math.max(ewVehicles.length, 1)
-            }
-        };
+        const roadEW = TrafficModels.createRoad();
+        roadEW.rotation.y = Math.PI / 2;
+        this.scene3D.addObject(roadEW);
+
+        // Traffic lights
+        this.setupTrafficLights();
+        
+        // Start vehicle spawning
+        this.setupSpawnInterval();
     }
-    
-    updateTrafficLights() {
-        Object.keys(this.trafficLights).forEach(direction => {
-            const lightMesh = this[direction + 'Light'];
-            if (!lightMesh || !lightMesh.userData.lights) return;
-            
-            // Обновляем состояние каждого сигнала с анимацией
-            Object.entries(lightMesh.userData.lights).forEach(([state, elements]) => {
-                const isActive = this.trafficLights[direction].state === state;
-                const targetIntensity = isActive ? 1 : 0.1;
-                const targetGlow = isActive ? 2 : 0;
-                const targetOpacity = isActive ? 0.3 : 0;
-                
-                // Плавное изменение интенсивности
-                elements.light.material.emissiveIntensity += 
-                    (targetIntensity - elements.light.material.emissiveIntensity) * 0.1;
-                elements.glow.intensity += 
-                    (targetGlow - elements.glow.intensity) * 0.1;
-                elements.glowSphere.material.opacity += 
-                    (targetOpacity - elements.glowSphere.material.opacity) * 0.1;
-            });
+
+    setupTrafficLights() {
+        const positions = [
+            { direction: 'north', x: -20, z: 20, rotation: Math.PI },
+            { direction: 'south', x: 20, z: -20, rotation: 0 },
+            { direction: 'east', x: 20, z: 20, rotation: Math.PI / 2 },
+            { direction: 'west', x: -20, z: -20, rotation: -Math.PI / 2 }
+        ];
+        
+        positions.forEach(pos => {
+            const light = TrafficModels.createTrafficLight(pos.direction);
+            light.position.set(pos.x, 0, pos.z);
+            light.rotation.y = pos.rotation;
+            this[pos.direction + 'Light'] = light;
+            this.scene3D.addObject(light);
         });
     }
+
+    setupSpawnInterval() {
+        // Спавн машин для обоих направлений
+        setInterval(() => {
+            const directions = ['north', 'south', 'east', 'west'];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            this.spawnVehicle(direction);
+        }, 2000);
+    }
+
     animate() {
         if (!this.running) return;
         
@@ -219,14 +256,14 @@ class TrafficSimulation {
                 Math.abs(vehicle.mesh.position.z) > 200;
                 
             if (outOfBounds) {
-                this.scene.removeObject(vehicle.mesh);
+                this.scene3D.removeObject(vehicle.mesh);
                 return false;
             }
             return true;
         });
         
         requestAnimationFrame(() => this.animate());
-        this.scene.render();
+        this.scene3D.render();
     }
 
     spawnVehicle(forcedDirection = null) {
@@ -287,7 +324,7 @@ class TrafficSimulation {
 
         if (isSafeToSpawn) {
             vehicle.currentSpeed = {...vehicle.maxSpeed};
-            this.scene.addObject(vehicle.mesh);
+            this.scene3D.addObject(vehicle.mesh);
             this.vehicles.push(vehicle);
         }
     }
@@ -300,8 +337,8 @@ class TrafficSimulation {
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
         
-        // Если машина уже в перекрестке - она продолжает движение без остановки
         if (inIntersection) {
+            // Машины в перекрестке всегда продолжают движение на максимальной скорости
             vehicle.waiting = false;
             vehicle.currentSpeed = {...vehicle.maxSpeed};
             return;
@@ -364,20 +401,71 @@ class TrafficSimulation {
         });
     }
 
-    
-    fetchIntersectionInfo() {
-        try {
-            const response = await fetch('/api/intersection-info');
-            const data = await response.json();
-            
-            document.getElementById('intersection-name').textContent = data.name;
-            document.getElementById('camera-ip-ns').textContent = data.cameras.ns.ip;
-            document.getElementById('camera-ip-ew').textContent = data.cameras.ew.ip;
-        } catch (error) {
-            console.error('Error fetching intersection info:', error);
+    startSimulation() {
+        this.running = true;
+        this.animate();
+    }
+
+    stopSimulation() {
+        this.running = false;
+    }
+
+    toggleSimulation() {
+        this.running = !this.running;
+        if (this.running) {
+            this.animate();
         }
     }
 
+    getTrafficData() {
+        const nsVehicles = this.vehicles.filter(v => v.direction === 'north' || v.direction === 'south');
+        const ewVehicles = this.vehicles.filter(v => v.direction === 'east' || v.direction === 'west');
+        
+        return {
+            ns: {
+                count: nsVehicles.length,
+                waiting: nsVehicles.filter(v => v.waiting).length,
+                avgSpeed: nsVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dy), 0) / Math.max(nsVehicles.length, 1)
+            },
+            ew: {
+                count: ewVehicles.length,
+                waiting: ewVehicles.filter(v => v.waiting).length,
+                avgSpeed: ewVehicles.reduce((sum, v) => sum + Math.abs(v.currentSpeed.dx), 0) / Math.max(ewVehicles.length, 1)
+            }
+        };
+    }
+
+    updateTrafficLights() {
+        Object.keys(this.trafficLights).forEach(direction => {
+            const lightMesh = this[direction + 'Light'];
+            if (!lightMesh || !lightMesh.userData.lights) return;
+            
+            // Обновляем состояние каждого сигнала с анимацией
+            Object.entries(lightMesh.userData.lights).forEach(([state, elements]) => {
+                const isActive = this.trafficLights[direction].state === state;
+                const targetIntensity = isActive ? 1 : 0.1;
+                const targetGlow = isActive ? 2 : 0;
+                const targetOpacity = isActive ? 0.3 : 0;
+                
+                // Плавное изменение интенсивности
+                elements.light.material.emissiveIntensity += 
+                    (targetIntensity - elements.light.material.emissiveIntensity) * 0.1;
+                elements.glow.intensity += 
+                    (targetGlow - elements.glow.intensity) * 0.1;
+                elements.glowSphere.material.opacity += 
+                    (targetOpacity - elements.glowSphere.material.opacity) * 0.1;
+            });
+        });
+        
+        // Обновляем отображение статистики
+        const data = this.getTrafficData();
+        document.getElementById('ns-queue').textContent = data.ns.waiting;
+        document.getElementById('ew-queue').textContent = data.ew.waiting;
+        document.getElementById('ns-speed').textContent = 
+            Math.round(data.ns.avgSpeed * 50) + ' км/ч';
+        document.getElementById('ew-speed').textContent = 
+            Math.round(data.ew.avgSpeed * 50) + ' км/ч';
+    }
 }
 
 // Initialize simulation when page loads
