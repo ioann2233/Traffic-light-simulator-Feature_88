@@ -332,34 +332,44 @@ class TrafficSimulation {
     checkTrafficLights(vehicle) {
         const STOP_LINE = 15;
         const INTERSECTION_ZONE = 10;
+        const SLOW_DOWN_DISTANCE = 30;
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
         
         if (inIntersection) {
-            // Машины в перекрестке всегда продолжают движение на максимальной скорости
+            // В перекрестке всегда продолжаем движение
             vehicle.waiting = false;
             vehicle.currentSpeed = {...vehicle.maxSpeed};
             return;
         }
         
-        const beforeStopLine = 
-            (vehicle.direction === 'north' && position.z > STOP_LINE) ||
-            (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
-            (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
-            (vehicle.direction === 'west' && position.x > STOP_LINE);
+        const distanceToStopLine = Math.abs(
+            vehicle.direction === 'north' || vehicle.direction === 'south' 
+                ? position.z - Math.sign(position.z) * STOP_LINE
+                : position.x - Math.sign(position.x) * STOP_LINE
+        );
         
-        if (beforeStopLine) {
-            const lightState = this.trafficLights[vehicle.direction].state;
-            if (lightState === 'red') {
+        const lightState = this.trafficLights[vehicle.direction].state;
+        
+        if (lightState === 'red' && distanceToStopLine > 0) {
+            // Плавное торможение перед стоп-линией
+            const slowDownFactor = Math.min(1, distanceToStopLine / SLOW_DOWN_DISTANCE);
+            vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+            vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
+            
+            if (distanceToStopLine < 1) {
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
-            } else {
-                vehicle.waiting = false;
-                vehicle.currentSpeed = {...vehicle.maxSpeed};
             }
+        } else if (lightState === 'green') {
+            // Плавный старт
+            vehicle.waiting = false;
+            const acceleration = 0.1;
+            vehicle.currentSpeed.dx += (vehicle.maxSpeed.dx - vehicle.currentSpeed.dx) * acceleration;
+            vehicle.currentSpeed.dy += (vehicle.maxSpeed.dy - vehicle.currentSpeed.dy) * acceleration;
         }
     }
 
@@ -461,6 +471,23 @@ class TrafficSimulation {
         const data = this.getTrafficData();
         document.getElementById('ns-queue').textContent = data.ns.waiting;
         document.getElementById('ew-queue').textContent = data.ew.waiting;
+    updateTurnSignals() {
+        this.vehicles.forEach(vehicle => {
+            if (!vehicle.mesh.userData.turnSignals) return;
+            
+            const signals = vehicle.mesh.userData.turnSignals;
+            if (vehicle.turnDirection) {
+                const signal = signals[vehicle.turnDirection];
+                // Мигание поворотника
+                signal.material.emissiveIntensity = Math.sin(Date.now() * 0.01) > 0 ? 1 : 0;
+            } else {
+                // Выключаем поворотники
+                Object.values(signals).forEach(signal => {
+                    signal.material.emissiveIntensity = 0;
+                });
+            }
+        });
+    }
         document.getElementById('ns-speed').textContent = 
             Math.round(data.ns.avgSpeed * 50) + ' км/ч';
         document.getElementById('ew-speed').textContent = 
