@@ -1,5 +1,12 @@
 class TrafficSimulation {
     constructor(canvas) {
+        console.log('Initializing TrafficSimulation...');
+        if (!canvas) {
+            console.error('Canvas element not found!');
+            return;
+        }
+        console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
+        
         this.canvas = canvas;
         this.ctx = canvas.getContext('2d');
         this.vehicles = [];
@@ -19,7 +26,8 @@ class TrafficSimulation {
             height: 60
         };
         
-        this.spawnInterval = setInterval(() => this.spawnVehicle(), 2000);
+        this.spawnInterval = setInterval(() => this.spawnVehicle(), 1000); // Reduced to 1000ms
+        console.log('TrafficSimulation initialized successfully');
         this.animate();
     }
 
@@ -35,27 +43,28 @@ class TrafficSimulation {
                 x = this.intersection.x - 15;
                 y = this.canvas.height;
                 dx = 0;
-                dy = -2;
+                dy = -3;
                 break;
             case 'south':
                 x = this.intersection.x + 15;
                 y = 0;
                 dx = 0;
-                dy = 2;
+                dy = 3;
                 break;
             case 'east':
                 x = 0;
                 y = this.intersection.y - 15;
-                dx = 2;
+                dx = 3;
                 dy = 0;
                 break;
             case 'west':
                 x = this.canvas.width;
                 y = this.intersection.y + 15;
-                dx = -2;
+                dx = -3;
                 dy = 0;
                 break;
         }
+        console.log(`Spawning vehicle: direction=${direction}, position=(${x},${y}), speed=(${dx},${dy})`);
 
         this.vehicles.push({
             x, y, 
@@ -295,6 +304,7 @@ class TrafficSimulation {
         this.updateVehicles();
         this.drawVehicles();
 
+        console.log(`Active vehicles: ${this.vehicles.length}`);
         requestAnimationFrame(() => this.animate());
     }
 
