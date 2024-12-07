@@ -29,13 +29,7 @@ class TrafficSimulation {
                     'Content-Type': 'application/json'
                 },
                 body: JSON.stringify({
-                    camera_id: 'cam1',
-                    position: {
-                        x: 0,
-                        y: 50,
-                        z: 0
-                    },
-                    direction: 'north'
+                    camera_id: 'cam1'
                 })
             });
             
@@ -48,6 +42,13 @@ class TrafficSimulation {
             this.updateTrafficData(data);
         } catch (error) {
             console.error('Error fetching camera data:', error);
+            // Используем симулированные данные при ошибке
+            const fallbackData = {
+                ns: { count: 2, waiting: 1, avgSpeed: 0.5 },
+                ew: { count: 2, waiting: 1, avgSpeed: 0.5 }
+            };
+            this.updateVehiclesFromCamera(fallbackData);
+            this.updateTrafficData(fallbackData);
         }
     }
 
@@ -347,24 +348,25 @@ class TrafficSimulation {
                 child.material.emissive
             );
             
-            // Сброс всех огней
-            lights.forEach(light => {
-                light.material.emissiveIntensity = 0.1;
+            // Обновляем состояние каждого сигнала
+            lights.forEach((light, index) => {
+                const state = this.trafficLights[direction].state;
+                const isActive = (
+                    (index === 0 && state === 'red') ||
+                    (index === 1 && state === 'yellow') ||
+                    (index === 2 && state === 'green')
+                );
+                
+                // Плавное изменение интенсивности
+                const targetIntensity = isActive ? 1 : 0.1;
+                light.material.emissiveIntensity += 
+                    (targetIntensity - light.material.emissiveIntensity) * 0.2;
+                
+                // Обновляем точечный свет
+                if (light.userData.pointLight) {
+                    light.userData.pointLight.intensity = isActive ? 0.5 : 0;
+                }
             });
-            
-            // Активация нужного сигнала
-            const state = this.trafficLights[direction].state;
-            const lightIndex = {
-                'red': 0,
-                'yellow': 1,
-                'green': 2
-            }[state];
-            
-            if (lights[lightIndex]) {
-                lights[lightIndex].material.emissiveIntensity = 1;
-                // Добавляем свечение для лучшей видимости
-                lights[lightIndex].material.emissiveIntensity = 1;
-            }
         });
     }
 }
