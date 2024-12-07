@@ -13,11 +13,12 @@ class TrafficModels {
     static createVehicle() {
         const vehicleGeometry = new THREE.BoxGeometry(10, 6, 15);
         const vehicleMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x4488ff,
+            color: Math.random() * 0xffffff, // Random color for each vehicle
             roughness: 0.5,
             metalness: 0.5
         });
         const vehicle = new THREE.Mesh(vehicleGeometry, vehicleMaterial);
+        vehicle.position.y = 3; // Lift vehicle slightly above the ground
         vehicle.castShadow = true;
         vehicle.receiveShadow = true;
         return vehicle;

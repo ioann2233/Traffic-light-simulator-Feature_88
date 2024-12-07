@@ -3,16 +3,21 @@ class Scene3D {
         this.container = container;
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x87CEEB); // Sky blue color
-        this.camera = new THREE.PerspectiveCamera(75, container.offsetWidth / container.offsetHeight, 0.1, 1000);
+        this.camera = new THREE.PerspectiveCamera(60, container.offsetWidth / container.offsetHeight, 0.1, 1000);
         
-        // Setup renderer
-        this.renderer = new THREE.WebGLRenderer({ antialias: true });
+        // Setup renderer with better quality settings
+        this.renderer = new THREE.WebGLRenderer({ 
+            antialias: true,
+            alpha: true,
+            powerPreference: "high-performance"
+        });
         this.renderer.setSize(container.offsetWidth, container.offsetHeight);
         this.renderer.shadowMap.enabled = true;
+        this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
         container.appendChild(this.renderer.domElement);
         
-        // Setup camera position and controls
-        this.camera.position.set(0, 100, 200);
+        // Setup initial camera position for better view
+        this.camera.position.set(150, 150, 150);
         this.camera.lookAt(0, 0, 0);
         
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
@@ -61,5 +66,9 @@ class Scene3D {
     
     removeObject(object) {
         this.scene.remove(object);
+    }
+    
+    render() {
+        this.renderer.render(this.scene, this.camera);
     }
 }

@@ -81,12 +81,15 @@ class TrafficSimulation {
     }
 
     initializeScene() {
-        // Create roads
+        // Create roads with proper orientation
         const roadNS = TrafficModels.createRoad();
-        roadNS.rotation.y = Math.PI / 2;
+        roadNS.rotation.x = -Math.PI / 2;
+        roadNS.rotation.y = 0;  // Remove rotation for N-S road
         this.scene3D.addObject(roadNS);
         
         const roadEW = TrafficModels.createRoad();
+        roadEW.rotation.x = -Math.PI / 2;
+        roadEW.rotation.y = Math.PI / 2;  // Rotation for E-W road
         this.scene3D.addObject(roadEW);
         
         // Create traffic lights
@@ -129,7 +132,33 @@ class TrafficSimulation {
 
     animate() {
         if (!this.running) return;
+        
+        // Update traffic lights state each frame
+        this.updateTrafficLights();
+        
+        // Update vehicle positions
+        this.vehicles = this.vehicles.filter(vehicle => {
+            if (!vehicle.waiting) {
+                vehicle.mesh.position.x += vehicle.currentSpeed.dx;
+                vehicle.mesh.position.z += vehicle.currentSpeed.dy;
+            }
+            
+            // Remove vehicles that have left the scene
+            const outOfBounds = 
+                vehicle.mesh.position.x < -200 ||
+                vehicle.mesh.position.x > 200 ||
+                vehicle.mesh.position.z < -200 ||
+                vehicle.mesh.position.z > 200;
+                
+            if (outOfBounds) {
+                this.scene3D.removeObject(vehicle.mesh);
+                return false;
+            }
+            return true;
+        });
+        
         requestAnimationFrame(() => this.animate());
+        this.scene3D.render();
     }
 
     toggleSimulation() {
@@ -138,8 +167,45 @@ class TrafficSimulation {
     }
 
     spawnVehicle() {
-        // Implementation for vehicle spawning will be added
-        console.log('Vehicle spawning not yet implemented');
+        if (!this.running) return;
+
+        const directions = ['north', 'south', 'east', 'west'];
+        const direction = directions[Math.floor(Math.random() * directions.length)];
+        
+        const vehicle = {
+            mesh: TrafficModels.createVehicle(),
+            direction: direction,
+            waiting: false,
+            currentSpeed: { dx: 0, dy: 0 },
+            maxSpeed: { dx: 0, dy: 0 }
+        };
+
+        // Set initial position and speed
+        switch(direction) {
+            case 'north':
+                vehicle.mesh.position.set(0, 2, 150);
+                vehicle.mesh.rotation.y = Math.PI;
+                vehicle.maxSpeed = { dx: 0, dy: -0.5 };
+                break;
+            case 'south':
+                vehicle.mesh.position.set(0, 2, -150);
+                vehicle.maxSpeed = { dx: 0, dy: 0.5 };
+                break;
+            case 'east':
+                vehicle.mesh.position.set(-150, 2, 0);
+                vehicle.mesh.rotation.y = Math.PI / 2;
+                vehicle.maxSpeed = { dx: 0.5, dy: 0 };
+                break;
+            case 'west':
+                vehicle.mesh.position.set(150, 2, 0);
+                vehicle.mesh.rotation.y = -Math.PI / 2;
+                vehicle.maxSpeed = { dx: -0.5, dy: 0 };
+                break;
+        }
+
+        vehicle.currentSpeed = {...vehicle.maxSpeed};
+        this.scene3D.addObject(vehicle.mesh);
+        this.vehicles.push(vehicle);
     }
 }
 
