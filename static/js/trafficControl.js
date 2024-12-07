@@ -206,34 +206,45 @@ class TrafficController {
     }
 
     async smoothTransition(direction, newState) {
+        const updateLights = (dir, state) => {
+            this.simulation.trafficLights[dir].state = state;
+            const lightMesh = this.simulation[dir + 'Light'];
+            if (lightMesh) {
+                const lights = lightMesh.children.filter(child => 
+                    child instanceof THREE.Mesh && 
+                    child.material.emissive
+                );
+                
+                // Сброс яркости всех сигналов
+                lights.forEach(light => {
+                    light.material.emissiveIntensity = 0.1;
+                });
+                
+                // Активация нужного сигнала с высокой яркостью
+                const lightIndex = state === 'red' ? 0 : state === 'yellow' ? 1 : 2;
+                if (lights[lightIndex]) {
+                    lights[lightIndex].material.emissiveIntensity = 1;
+                }
+            }
+        };
+
         if (direction === 'ns') {
-            // Update traffic lights state for North-South
-            this.simulation.trafficLights.north.state = newState;
-            this.simulation.trafficLights.south.state = newState;
-            
+            updateLights('north', newState);
+            updateLights('south', newState);
             if (newState === 'green') {
-                // If N-S is green, E-W must be red
-                this.simulation.trafficLights.east.state = 'red';
-                this.simulation.trafficLights.west.state = 'red';
+                updateLights('east', 'red');
+                updateLights('west', 'red');
             }
         } else {
-            // Update traffic lights state for East-West
-            this.simulation.trafficLights.east.state = newState;
-            this.simulation.trafficLights.west.state = newState;
-            
+            updateLights('east', newState);
+            updateLights('west', newState);
             if (newState === 'green') {
-                // If E-W is green, N-S must be red
-                this.simulation.trafficLights.north.state = 'red';
-                this.simulation.trafficLights.south.state = 'red';
+                updateLights('north', 'red');
+                updateLights('south', 'red');
             }
         }
         
-        // Force update visual state of traffic lights
-        this.simulation.updateTrafficLights();
-        
-        // Add smooth transition delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        this.lastStateChange = Date.now();
+        await this.delay(500);
     }
 
     updateStats(trafficData) {

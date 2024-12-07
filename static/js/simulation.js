@@ -186,9 +186,9 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = forcedDirection || directions[Math.floor(Math.random() * directions.length)];
         
-        // Choose random lane (0 or 1)
+        // Выбор полосы (0 или 1)
         const lane = Math.floor(Math.random() * 2);
-        const laneOffset = lane * 10 - 5; // -5 for first lane, +5 for second
+        const laneOffset = lane * 8; // Увеличенное расстояние между полосами
         
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
@@ -199,44 +199,43 @@ class TrafficSimulation {
             maxSpeed: { dx: 0, dy: 0 }
         };
 
-        // Set initial position and speed based on direction and lane
+        // Установка позиции и скорости с учетом полосы
         switch(direction) {
             case 'north':
-                vehicle.mesh.position.set(-laneOffset, 2, 150);
+                vehicle.mesh.position.set(-8 + laneOffset, 2, 150);
                 vehicle.mesh.rotation.y = Math.PI;
-                vehicle.maxSpeed = { dx: 0, dy: -0.5 };
+                vehicle.maxSpeed = { dx: 0, dy: -0.8 };
                 break;
             case 'south':
-                vehicle.mesh.position.set(laneOffset, 2, -150);
-                vehicle.maxSpeed = { dx: 0, dy: 0.5 };
+                vehicle.mesh.position.set(8 - laneOffset, 2, -150);
+                vehicle.maxSpeed = { dx: 0, dy: 0.8 };
                 break;
             case 'east':
-                vehicle.mesh.position.set(-150, 2, -laneOffset);
+                vehicle.mesh.position.set(-150, 2, -8 + laneOffset);
                 vehicle.mesh.rotation.y = Math.PI / 2;
-                vehicle.maxSpeed = { dx: 0.5, dy: 0 };
+                vehicle.maxSpeed = { dx: 0.8, dy: 0 };
                 break;
             case 'west':
-                vehicle.mesh.position.set(150, 2, laneOffset);
+                vehicle.mesh.position.set(150, 2, 8 - laneOffset);
                 vehicle.mesh.rotation.y = -Math.PI / 2;
-                vehicle.maxSpeed = { dx: -0.5, dy: 0 };
+                vehicle.maxSpeed = { dx: -0.8, dy: 0 };
                 break;
         }
 
-        // Check if it's safe to spawn
+        // Проверка безопасной дистанции
         const isSafeToSpawn = !this.vehicles.some(other => {
             if (other.direction !== direction || other.lane !== lane) return false;
             const distance = Math.sqrt(
                 Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
                 Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
             );
-            return distance < 20;
+            return distance < 25;
         });
 
         if (isSafeToSpawn) {
             vehicle.currentSpeed = {...vehicle.maxSpeed};
             this.scene3D.addObject(vehicle.mesh);
             this.vehicles.push(vehicle);
-            console.log(`Spawning vehicle: direction=${direction}`);
         }
     }
 
