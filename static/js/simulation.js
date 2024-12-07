@@ -92,15 +92,30 @@ class TrafficSimulation {
     }
 
     initializeScene() {
-        // Создание дорог с правильной ориентацией
+        // Создание дороги North-South
         const roadNS = TrafficModels.createRoad();
-        roadNS.rotation.x = -Math.PI / 2;  // Горизонтально
+        roadNS.rotation.x = -Math.PI / 2;  // Положить горизонтально
+        roadNS.position.y = 0;  // На уровне земли
         this.scene3D.addObject(roadNS);
         
+        // Создание дороги East-West с правильной ориентацией
         const roadEW = TrafficModels.createRoad();
-        roadEW.rotation.x = -Math.PI / 2;  // Горизонтально
-        roadEW.rotation.y = Math.PI / 2;   // Поворот для E-W дороги
+        roadEW.rotation.x = -Math.PI / 2;  // Положить горизонтально
+        roadEW.rotation.y = Math.PI / 2;   // Повернуть на 90 градусов
+        roadEW.position.y = 0;  // На уровне земли
         this.scene3D.addObject(roadEW);
+        
+        // Земля
+        const groundGeometry = new THREE.PlaneGeometry(500, 500);
+        const groundMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x1a472a,
+            roughness: 0.8
+        });
+        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
+        ground.rotation.x = -Math.PI / 2;
+        ground.position.y = -0.1;  // Чуть ниже дорог
+        ground.receiveShadow = true;
+        this.scene3D.addObject(ground);
         
         // Create traffic lights
         this.northLight = TrafficModels.createTrafficLight();
