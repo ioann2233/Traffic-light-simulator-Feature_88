@@ -44,6 +44,13 @@
         </div>
     </div>
 
+    <div id="trafficLightDialog" class="modal" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #333; padding: 20px; border-radius: 8px; z-index: 1000;">
+        <h3>Изменить сигнал светофора</h3>
+        <button onclick="changeTrafficLight('red')" style="background: red; margin: 5px;">Красный</button>
+        <button onclick="changeTrafficLight('yellow')" style="background: yellow; margin: 5px;">Желтый</button>
+        <button onclick="changeTrafficLight('green')" style="background: green; margin: 5px;">Зеленый</button>
+    </div>
+
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>

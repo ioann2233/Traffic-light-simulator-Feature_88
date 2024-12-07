@@ -104,42 +104,34 @@ class TrafficSimulation {
     }
 
     handleTrafficLightClick(direction) {
-        // Определяем группы светофоров
-        const nsGroup = ['north', 'south'];
-        const ewGroup = ['east', 'west'];
+        const dialog = document.getElementById('trafficLightDialog');
+        dialog.style.display = 'block';
         
-        // Определяем, к какой группе принадлежит кликнутый светофор
-        const isNS = nsGroup.includes(direction);
-        const currentGroup = isNS ? nsGroup : ewGroup;
-        const oppositeGroup = isNS ? ewGroup : nsGroup;
-        
-        // Определяем текущее состояние группы
-        const currentState = this.trafficLights[direction].state;
-        
-        if (currentState === 'green') {
-            // Сначала включаем желтый для текущей группы
+        window.changeTrafficLight = (newState) => {
+            const nsGroup = ['north', 'south'];
+            const ewGroup = ['east', 'west'];
+            const isNS = nsGroup.includes(direction);
+            const currentGroup = isNS ? nsGroup : ewGroup;
+            const oppositeGroup = isNS ? ewGroup : nsGroup;
+            
+            // Меняем состояние для текущей группы
             currentGroup.forEach(dir => {
-                this.trafficLights[dir].state = 'yellow';
+                this.trafficLights[dir].state = newState;
             });
             
-            // Через 2 секунды переключаем на красный и даем зеленый противоположной группе
-            setTimeout(() => {
-                currentGroup.forEach(dir => {
+            // Устанавливаем противоположное состояние для другой группы
+            if (newState === 'green') {
+                oppositeGroup.forEach(dir => {
                     this.trafficLights[dir].state = 'red';
                 });
+            } else if (newState === 'red') {
                 oppositeGroup.forEach(dir => {
                     this.trafficLights[dir].state = 'green';
                 });
-            }, 2000);
-        } else {
-            // Включаем зеленый для текущей группы и красный для противоположной
-            currentGroup.forEach(dir => {
-                this.trafficLights[dir].state = 'green';
-            });
-            oppositeGroup.forEach(dir => {
-                this.trafficLights[dir].state = 'red';
-            });
-        }
+            }
+            
+            dialog.style.display = 'none';
+        };
     }
 
     updateVehiclesFromCamera(data) {
@@ -367,23 +359,28 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 45;  // Значительно увеличенная безопасная дистанция
-        const SLOW_DISTANCE = 60;  // Увеличенная дистанция замедления
-        
-        let shouldStop = false;
-        let shouldSlow = false;
+        const SAFE_DISTANCE = 45;
+        const SLOW_DISTANCE = 60;
         
         this.vehicles.forEach(other => {
-            if (other !== vehicle && 
-                other.direction === vehicle.direction && 
-                other.lane === vehicle.lane) {
-                
-                const distance = Math.sqrt(
-                    Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
-                    Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
-                );
-                
-                // Учитываем направление движения при проверке расстояния
+            if (other === vehicle) return;
+            
+            const distance = Math.sqrt(
+                Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
+                Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
+            );
+            
+            // Проверяем столкновения для всех машин, не только в одной полосе
+            if (distance < SAFE_DISTANCE) {
+                // Полная остановка при близком расстоянии
+                vehicle.waiting = true;
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
+                return;
+            }
+            
+            // Для машин в одном направлении проверяем дистанцию следования
+            if (other.direction === vehicle.direction && other.lane === vehicle.lane) {
                 const isAhead = (
                     (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
                     (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
@@ -391,22 +388,12 @@ class TrafficSimulation {
                     (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
                 );
                 
-                if (isAhead && distance < SAFE_DISTANCE) {
-                    shouldStop = true;
-                } else if (isAhead && distance < SLOW_DISTANCE) {
-                    shouldSlow = true;
+                if (isAhead && distance < SLOW_DISTANCE) {
+                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.5;
+                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.5;
                 }
             }
         });
-        
-        if (shouldStop) {
-            vehicle.waiting = true;
-            vehicle.currentSpeed.dx = 0;
-            vehicle.currentSpeed.dy = 0;
-        } else if (shouldSlow) {
-            vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
-            vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
-        }
     }
 
     startSimulation() {
@@ -446,29 +433,15 @@ class TrafficSimulation {
     updateTrafficLights() {
         Object.keys(this.trafficLights).forEach(direction => {
             const lightMesh = this[direction + 'Light'];
-            if (!lightMesh) return;
+            if (!lightMesh || !lightMesh.userData.lights) return;
             
-            // Получаем все сигналы светофора
-            const lights = lightMesh.userData.lights;
-            if (!lights) return;
-            
-            // Сбрасываем все сигналы
-            Object.values(lights).forEach(light => {
-                light.material.emissiveIntensity = 0.1;
-                if (light.userData.pointLight) {
-                    light.userData.pointLight.intensity = 0;
-                }
+            // Обновляем состояние каждого сигнала
+            Object.entries(lightMesh.userData.lights).forEach(([state, elements]) => {
+                const isActive = this.trafficLights[direction].state === state;
+                elements.light.material.emissiveIntensity = isActive ? 1 : 0.1;
+                elements.glow.intensity = isActive ? 2 : 0;
+                elements.glowSphere.material.opacity = isActive ? 0.3 : 0;
             });
-            
-            // Активируем нужный сигнал
-            const state = this.trafficLights[direction].state;
-            const activeLight = lights[state];
-            if (activeLight) {
-                activeLight.material.emissiveIntensity = 1;
-                if (activeLight.userData.pointLight) {
-                    activeLight.userData.pointLight.intensity = 2;
-                }
-            }
         });
     }
 }

@@ -140,12 +140,25 @@ class TrafficModels {
             glow.position.set(0, y, 1.5);
             light.userData.pointLight = glow;
             
+            // Добавление ореола свечения
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.3
+            });
+            const glowSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(1.3),
+                glowMaterial
+            );
+            glowSphere.position.set(0, y, 1.5);
+            
             group.add(light);
             group.add(glow);
-            return light;
+            group.add(glowSphere);
+            return { light, glow, glowSphere };
         };
         
-        // Создаем сигналы
+        // Создаем сигналы с эффектами свечения
         group.userData.lights = {
             red: createLight(0xff0000, 16),
             yellow: createLight(0xffff00, 13),
