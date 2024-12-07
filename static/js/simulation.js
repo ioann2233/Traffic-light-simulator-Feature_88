@@ -228,151 +228,39 @@ class TrafficSimulation {
                 vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
             }
 
-            // Check if vehicle is at intersection with reduced zone
-            const atIntersection = (
-                vehicle.y > this.intersection.y - 30 &&
-                vehicle.y < this.intersection.y + 30 &&
-                vehicle.x > this.intersection.x - 30 &&
-                vehicle.x < this.intersection.x + 30
-            );
-
-            // Check if vehicle has started crossing the intersection
-            const isCrossingIntersection = (
-                vehicle.y > this.intersection.y - 15 &&
-                vehicle.y < this.intersection.y + 15 &&
-                vehicle.x > this.intersection.x - 15 &&
-                vehicle.x < this.intersection.x + 15
-            );
-
-            // Check for vehicles ahead and maintain safe distance
-            let shouldSlow = false;
-            let shouldStop = false;
-            let nearestVehicleAhead = null;
-            let minDistance = Infinity;
-
-            this.vehicles.forEach(otherVehicle => {
-                if (vehicle === otherVehicle) return;
-
-                // Only check vehicles in the same direction and same lane
-                if (vehicle.direction === otherVehicle.direction) {
-                    let distance;
-                    let inSameLane = false;
-                    
-                    if (isVertical) {
-                        inSameLane = Math.abs(vehicle.x - otherVehicle.x) < 15; // Stricter same lane check
-                        if (inSameLane) {
-                            // Only consider vehicles actually ahead
-                            if ((vehicle.direction === 'north' && otherVehicle.y < vehicle.y) ||
-                                (vehicle.direction === 'south' && otherVehicle.y > vehicle.y)) {
-                                distance = Math.abs(vehicle.y - otherVehicle.y);
-                            }
-                        }
-                    } else {
-                        inSameLane = Math.abs(vehicle.y - otherVehicle.y) < 15; // Stricter same lane check
-                        if (inSameLane) {
-                            // Only consider vehicles actually ahead
-                            if ((vehicle.direction === 'east' && otherVehicle.x > vehicle.x) ||
-                                (vehicle.direction === 'west' && otherVehicle.x < vehicle.x)) {
-                                distance = Math.abs(vehicle.x - otherVehicle.x);
-                            }
-                        }
-                    }
-
-                    if (distance !== undefined && distance < minDistance) {
-                        minDistance = distance;
-                        nearestVehicleAhead = otherVehicle;
-                        if (distance < SAFE_DISTANCE) {
-                            const slowdownFactor = distance / SAFE_DISTANCE;
-                            vehicle.currentSpeed.dx = otherVehicle.currentSpeed.dx * slowdownFactor;
-                            vehicle.currentSpeed.dy = otherVehicle.currentSpeed.dy * slowdownFactor;
-                            vehicle.waiting = true;
-                        }
-                    }
+            if (canPass) {
+                // На зеленый свет - едем
+                if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0) {
+                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx;
+                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy;
                 }
-            });
-
-            // Intersection logic with priority for vehicles already crossing
-            if (atIntersection && !canPass && !isCrossingIntersection) {
-                shouldStop = true;
-                if (!vehicle.blocked) {
-                    vehicle.blocked = true;
-                    vehicle.waiting = true;
-                    // Immediate stop at red light
+            } else if (isYellowLight) {
+                // На желтый - если не в перекрестке, останавливаемся
+                if (!atIntersection(vehicle) && distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
                 }
-            } else if (atIntersection && canPass) {
-                // Check if there's enough space after intersection
-                const spaceAhead = this.vehicles.every(otherVehicle => {
-                    if (vehicle === otherVehicle || vehicle.direction !== otherVehicle.direction) return true;
-                    
-                    const aheadOfIntersection = (
-                        (vehicle.direction === 'north' && otherVehicle.y < vehicle.y - INTERSECTION_CLEARANCE) ||
-                        (vehicle.direction === 'south' && otherVehicle.y > vehicle.y + INTERSECTION_CLEARANCE) ||
-                        (vehicle.direction === 'east' && otherVehicle.x > vehicle.x + INTERSECTION_CLEARANCE) ||
-                        (vehicle.direction === 'west' && otherVehicle.x < vehicle.x - INTERSECTION_CLEARANCE)
-                    );
-                    
-                    return aheadOfIntersection;
-                });
-
-                if (!spaceAhead && !isCrossingIntersection) {
-                    shouldSlow = true;
+            } else if (isRedLight) {
+                // На красный - останавливаемся перед перекрестком
+                if (!atIntersection(vehicle) && distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
                 }
             }
 
-            // Smooth speed adjustment based on conditions
-            const targetSpeedRatio = shouldStop ? MIN_SPEED_RATIO :
-                                   shouldSlow ? 0.5 :
-                                   1.0;
-
-            // Gradually adjust speed towards target
-            const adjustSpeed = (current, max, target) => {
-                const targetSpeed = Math.abs(max) * target;
-                const currentAbs = Math.abs(current);
-                
-                if (currentAbs < targetSpeed) {
-                    return Math.min(currentAbs + SPEED_CHANGE_RATE, targetSpeed) * Math.sign(max);
-                } else {
-                    return Math.max(currentAbs - SPEED_CHANGE_RATE, targetSpeed) * Math.sign(max);
-                }
-            };
-
-            vehicle.currentSpeed.dx = adjustSpeed(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, targetSpeedRatio);
-            vehicle.currentSpeed.dy = adjustSpeed(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, targetSpeedRatio);
-
-            // Update vehicle state
-            vehicle.waiting = shouldStop || shouldSlow;
-            vehicle.blocked = shouldStop;
-
-            // Улучшенная логика движения
-            if (canPass && !shouldStop) {
-                // Плавное ускорение
-                vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
-                vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
-            } else if (shouldSlow) {
-                // Плавное замедление
-                vehicle.currentSpeed.dx *= 0.95;
-                vehicle.currentSpeed.dy *= 0.95;
-            }
-
-            // Обновление позиции всегда
+            // Обновление позиции
             vehicle.x += vehicle.currentSpeed.dx;
             vehicle.y += vehicle.currentSpeed.dy;
 
-            // Проверяем, что машина действительно покинула видимую область
-            const isWayOutside = (
-                vehicle.x < -150 ||
-                vehicle.x > this.canvas.width + 150 ||
-                vehicle.y < -150 ||
-                vehicle.y > this.canvas.height + 150
+            // Упрощенные условия удаления машин
+            return !(
+                vehicle.x < -100 ||
+                vehicle.x > this.canvas.width + 100 ||
+                vehicle.y < -100 ||
+                vehicle.y > this.canvas.height + 100
             );
-
-            // Не удаляем машины, которые стоят на светофоре или в перекрестке
-            if (isWayOutside && !vehicle.waiting && !atIntersection(vehicle)) {
-                return false;
-            }
-            return true;
         });
     }
 
