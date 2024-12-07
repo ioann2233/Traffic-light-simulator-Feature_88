@@ -11,11 +11,24 @@ class TrafficController {
     calculateGreenTime(trafficData) {
         const { ns, ew } = trafficData;
         
-        // Calculate score based on waiting vehicles and average speed
+        // Проверка на затор (более 20 машин)
+        if (ns.waiting > 20) {
+            return {
+                nsGreenTime: this.maxGreenTime,  // Максимальное время для пропуска затора
+                ewGreenTime: this.minGreenTime
+            };
+        }
+        if (ew.waiting > 20) {
+            return {
+                nsGreenTime: this.minGreenTime,
+                ewGreenTime: this.maxGreenTime  // Максимальное время для пропуска затора
+            };
+        }
+        
+        // Существующая логика расчета времени
         const nsScore = (ns.waiting * 2) + (1 / (ns.avgSpeed + 0.1));
         const ewScore = (ew.waiting * 2) + (1 / (ew.avgSpeed + 0.1));
         
-        // Calculate green time based on score
         const baseTime = this.minGreenTime;
         const variableTime = this.maxGreenTime - this.minGreenTime;
         
