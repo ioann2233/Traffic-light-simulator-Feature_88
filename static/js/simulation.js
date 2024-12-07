@@ -276,6 +276,10 @@ class TrafficSimulation {
         const lane = Math.floor(Math.random() * 2);
         const laneOffset = lane * 12; // Увеличенное расстояние между полосами
         
+        // Добавляем возможность поворота
+        const willTurn = Math.random() < 0.3; // 30% шанс поворота
+        const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+        
         // Добавляем случайный поворот
         const willTurn = Math.random() < 0.3; // 30% шанс поворота
         const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
