@@ -221,10 +221,17 @@ class TrafficSimulation {
     setupSpawnInterval() {
         setInterval(() => {
             if (!this.running) return;
+            if (this.vehicles.length >= 10) return; // Ограничение общего количества машин
+            
             const directions = ['north', 'south', 'east', 'west'];
             const direction = directions[Math.floor(Math.random() * directions.length)];
-            this.spawnVehicle(direction);
-        }, 2000);
+            
+            // Добавляем вероятность поворота
+            const willTurn = Math.random() < 0.3; // 30% шанс поворота
+            const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+            
+            this.spawnVehicle(direction, willTurn ? turnDirection : null);
+        }, 4000); // Увеличиваем интервал до 4 секунд
     }
 
     animate() {
@@ -235,8 +242,7 @@ class TrafficSimulation {
                 this.checkTrafficLights(vehicle);
                 
                 if (!vehicle.waiting) {
-                    vehicle.mesh.position.x += vehicle.currentSpeed.dx;
-                    vehicle.mesh.position.z += vehicle.currentSpeed.dy;
+                    vehicle.updatePosition();
                     this.checkCollisions(vehicle);
                 }
             } else {
@@ -260,20 +266,14 @@ class TrafficSimulation {
         this.scene3D.render();
     }
 
-    spawnVehicle(direction) {
+    spawnVehicle(direction, turnDirection) {
         if (!this.running) return;
 
         const lane = Math.floor(Math.random() * 2);
         const laneOffset = lane * 12;
         
-        const vehicle = {
-            mesh: TrafficModels.createVehicle(),
-            direction: direction,
-            lane: lane,
-            waiting: false,
-            currentSpeed: { dx: 0, dy: 0 },
-            maxSpeed: { dx: 0, dy: 0 }
-        };
+        const vehicle = new Vehicle(direction, turnDirection);
+        vehicle.lane = lane;
 
         switch(direction) {
             case 'north':
