@@ -101,11 +101,14 @@ class TrafficController {
         this.currentPhase = {
             direction: 'ns',
             state: 'green',
-            timeLeft: 60000  // Начальное время - 60 секунд
+            timeLeft: 60000  // 60 секунд начальное время
         };
+        
+        this.rlAgent = new QLearningAgent();
         
         setInterval(() => {
             const trafficData = this.simulation.getTrafficData();
+            const currentState = this.rlAgent.getState(trafficData);
             
             // Обновляем время фазы
             this.currentPhase.timeLeft -= 1000;
@@ -124,16 +127,12 @@ class TrafficController {
                     // Меняем направление
                     this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                     
-                    // Вычисляем оптимальное время следующей фазы
-                    const state = this.rlAgent.getState(trafficData);
-                    const action = this.rlAgent.getAction(state);
-                    const waitingCars = (this.currentPhase.direction === 'ns') 
-                        ? trafficData.ns.waiting 
-                        : trafficData.ew.waiting;
-                        
+                    // Получаем оптимальное время от RL агента
+                    const action = this.rlAgent.getAction(currentState);
+                    const nextGreenTime = this.currentPhase.direction === 'ns' ? action.nsTime : action.ewTime;
+                    
                     // Устанавливаем время в пределах от 20 до 160 секунд
-                    const baseTime = Math.max(20000, Math.min(160000, waitingCars * 10000));
-                    this.currentPhase.timeLeft = baseTime;
+                    this.currentPhase.timeLeft = Math.max(20000, Math.min(160000, nextGreenTime));
                     
                     // Устанавливаем зеленый для нового направления
                     this.setLights(this.currentPhase.direction, 'green');
@@ -142,9 +141,10 @@ class TrafficController {
                     // Обновляем Q-таблицу
                     if (this.lastState && this.lastAction) {
                         const reward = this.calculateReward(trafficData);
-                        this.rlAgent.updateQ(this.lastState, this.lastAction, reward, state);
+                        this.rlAgent.updateQ(this.lastState, this.lastAction, reward, currentState);
                     }
-                    this.lastState = state;
+                    
+                    this.lastState = currentState;
                     this.lastAction = action;
                 }
             }

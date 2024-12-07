@@ -62,7 +62,7 @@ class TrafficSimulation {
             }
         } catch (error) {
             console.error('Error fetching camera data:', error);
-            // Используем последние известные данные
+            // Используем временные данные при ошибке
             const fallbackData = {
                 ns: { count: 3, waiting: 1, avgSpeed: 0.6 },
                 ew: { count: 3, waiting: 1, avgSpeed: 0.6 }
