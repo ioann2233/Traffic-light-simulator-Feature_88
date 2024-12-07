@@ -1,14 +1,8 @@
 class TrafficSimulation {
     constructor() {
-        // Дождаться полной загрузки DOM
-        if (!document.getElementById('scene3d')) {
-            console.error('Container not found');
-            return;
-        }
-        
         // Initialize 3D scene
         this.scene3D = new Scene3D(document.getElementById('scene3d'));
-        
+
         // Initialize state
         this.vehicles = [];
         this.running = true;

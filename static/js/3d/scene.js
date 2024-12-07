@@ -17,15 +17,12 @@ class Scene3D {
         container.appendChild(this.renderer.domElement);
         
         // Setup initial camera position for better view
-        this.camera.position.set(0, 100, 100);
+        this.camera.position.set(150, 150, 150);
         this.camera.lookAt(0, 0, 0);
         
         this.controls = new THREE.OrbitControls(this.camera, this.renderer.domElement);
         this.controls.enableDamping = true;
         this.controls.dampingFactor = 0.05;
-        this.controls.maxPolarAngle = Math.PI / 2.1;
-        this.controls.minDistance = 50;
-        this.controls.maxDistance = 200;
         
         // Add lighting
         this.setupLighting();
