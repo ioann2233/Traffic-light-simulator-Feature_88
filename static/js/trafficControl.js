@@ -107,45 +107,55 @@ class TrafficController {
             return;
         }
         
+        console.log('Starting automatic control');
+        
         this.currentPhase = {
             direction: 'ns',
             state: 'green',
             timeLeft: 60000
         };
         
+        // Основной цикл управления светофором
         setInterval(() => {
             try {
                 const trafficData = this.simulation.getTrafficData();
-                if (!trafficData) {
-                    console.warn('No traffic data available');
-                    return;
-                }
+                if (!trafficData) return;
                 
+                // Уменьшаем оставшееся время
                 this.currentPhase.timeLeft -= 1000;
                 
+                // Если время фазы истекло
                 if (this.currentPhase.timeLeft <= 0) {
                     if (this.currentPhase.state === 'green') {
+                        // Переключаем на желтый
                         this.currentPhase.state = 'yellow';
                         this.currentPhase.timeLeft = 5000;
                         this.setLights(this.currentPhase.direction, 'yellow');
                     } else if (this.currentPhase.state === 'yellow') {
+                        // Переключаем на красный и меняем направление
                         this.currentPhase.state = 'red';
                         this.setLights(this.currentPhase.direction, 'red');
                         
-                        this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
+                        // Меняем направление
+                        this.currentPhase.direction = 
+                            (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                         
+                        // Вычисляем время следующей фазы
                         const state = this.rlAgent.getState(trafficData);
                         const action = this.rlAgent.getAction(state);
                         const waitingCars = (this.currentPhase.direction === 'ns') 
                             ? trafficData.ns.waiting 
                             : trafficData.ew.waiting;
-                            
-                        const baseTime = Math.max(20000, Math.min(160000, waitingCars * 10000));
-                        this.currentPhase.timeLeft = baseTime;
                         
+                        // Устанавливаем время в пределах от 20 до 160 секунд
+                        this.currentPhase.timeLeft = Math.max(20000, 
+                            Math.min(160000, waitingCars * 10000));
+                        
+                        // Включаем зеленый для нового направления
                         this.setLights(this.currentPhase.direction, 'green');
                         this.currentPhase.state = 'green';
                         
+                        // Обновляем Q-таблицу
                         if (this.lastState && this.lastAction) {
                             const reward = this.calculateReward(trafficData);
                             this.rlAgent.updateQ(this.lastState, this.lastAction, reward, state);
@@ -158,6 +168,8 @@ class TrafficController {
                 console.error('Error in automatic control:', error);
             }
         }, 1000);
+        
+        console.log('Automatic control started');
     }
     
     setLights(direction, state) {

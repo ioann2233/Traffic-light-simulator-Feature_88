@@ -65,17 +65,17 @@ class TrafficSimulation {
     
     createTrafficLights() {
         const positions = {
-            north: [0, 0, 15],
-            south: [0, 0, -15],
-            east: [-15, 0, 0],
-            west: [15, 0, 0]
+            north: [-15, 0, 15],  // Левый верхний угол
+            south: [15, 0, -15],  // Правый нижний угол
+            east: [-15, 0, -15],  // Левый нижний угол
+            west: [15, 0, 15]     // Правый верхний угол
         };
         
         const rotations = {
-            north: [0, Math.PI, 0],
-            south: [0, 0, 0],
-            east: [0, Math.PI/2, 0],
-            west: [0, -Math.PI/2, 0]
+            north: [0, Math.PI * 0.75, 0],
+            south: [0, -Math.PI * 0.25, 0],
+            east: [0, Math.PI * 0.25, 0],
+            west: [0, -Math.PI * 0.75, 0]
         };
         
         Object.entries(positions).forEach(([direction, position]) => {

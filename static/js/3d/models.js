@@ -2,64 +2,57 @@ class TrafficModels {
     static createRoad() {
         const group = new THREE.Group();
         
-        // Основная дорога с 4 полосами (теперь горизонтально)
-        const roadWidth = 40;
-        const roadLength = 200;
+        // Создаем две пересекающиеся дороги
+        const roads = [
+            { width: 40, length: 200, rotation: 0 },      // Горизонтальная дорога
+            { width: 40, length: 200, rotation: Math.PI/2 }  // Вертикальная дорога
+        ];
         
-        // Асфальт
-        const roadGeometry = new THREE.PlaneGeometry(roadLength, roadWidth);
-        const roadMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x333333,
-            roughness: 0.8
-        });
-        const road = new THREE.Mesh(roadGeometry, roadMaterial);
-        road.rotation.x = -Math.PI / 2; // Поворот для горизонтального положения
-        road.receiveShadow = true;
-        group.add(road);
-        
-        // Разметка
-        const lineMaterial = new THREE.MeshStandardMaterial({
-            color: 0xFFFFFF,
-            roughness: 0.4
-        });
-        
-        // Центральная двойная линия
-        [-1, 1].forEach(offset => {
+        roads.forEach(road => {
+            // Асфальт
+            const roadGeometry = new THREE.PlaneGeometry(road.length, road.width);
+            const roadMaterial = new THREE.MeshStandardMaterial({ 
+                color: 0x333333,
+                roughness: 0.8
+            });
+            const roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
+            roadMesh.rotation.x = -Math.PI / 2;
+            roadMesh.rotation.y = road.rotation;
+            roadMesh.receiveShadow = true;
+            group.add(roadMesh);
+            
+            // Разметка
+            const lineMaterial = new THREE.MeshStandardMaterial({
+                color: 0xFFFFFF,
+                roughness: 0.4
+            });
+            
+            // Центральная разделительная полоса
             const centerLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(roadLength, 0.5),
+                new THREE.PlaneGeometry(road.length, 0.5),
                 lineMaterial
             );
             centerLine.rotation.x = -Math.PI / 2;
+            centerLine.rotation.y = road.rotation;
             centerLine.position.y = 0.1;
-            centerLine.position.z = offset;
             group.add(centerLine);
-        });
-        
-        // Боковые линии
-        [-roadWidth/2, roadWidth/2].forEach(z => {
-            const sideLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(roadLength, 0.5),
-                lineMaterial
-            );
-            sideLine.rotation.x = -Math.PI / 2;
-            sideLine.position.y = 0.1;
-            sideLine.position.z = z;
-            group.add(sideLine);
-        });
-        
-        // Разметка полос движения
-        [-roadWidth/4, roadWidth/4].forEach(z => {
-            const laneMarkings = new THREE.Group();
-            for(let x = -90; x < 90; x += 20) {
-                const dash = new THREE.Mesh(
-                    new THREE.PlaneGeometry(10, 0.5),
+            
+            // Боковые линии
+            [-road.width/2, road.width/2].forEach(offset => {
+                const sideLine = new THREE.Mesh(
+                    new THREE.PlaneGeometry(road.length, 0.5),
                     lineMaterial
                 );
-                dash.position.set(x, 0.1, z);
-                dash.rotation.x = -Math.PI / 2;
-                laneMarkings.add(dash);
-            }
-            group.add(laneMarkings);
+                sideLine.rotation.x = -Math.PI / 2;
+                sideLine.rotation.y = road.rotation;
+                sideLine.position.y = 0.1;
+                if (road.rotation === 0) {
+                    sideLine.position.z = offset;
+                } else {
+                    sideLine.position.x = offset;
+                }
+                group.add(sideLine);
+            });
         });
         
         return group;
