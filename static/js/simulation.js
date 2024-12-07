@@ -127,15 +127,51 @@ class TrafficSimulation {
 
     updateVehicles() {
         const SAFE_DISTANCE = 40; // Увеличить безопасное расстояние между машинами
-        const INTERSECTION_CLEARANCE = 40; // Необходимое пространство после перекрестка
         const MAX_SPEED = 60;  // максимальная скорость
         const MIN_SPEED = 0;   // минимальная скорость
         const ACCELERATION_RATE = 0.2;  // Уменьшить для более плавного ускорения
-        const DECELERATION_RATE = 1;    // торможение
-        const SPEED_CHANGE_RATE = 0.8; // коэффициент изменения скорости
-        const DECISION_ZONE = 100; // Зона принятия решения при желтом сигнале
-        const CRITICAL_ZONE = 30;  // Зона обязательного проезда при желтом сигнале
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
+
+        const INTERSECTION_ZONE = {
+            x1: this.intersection.x - 30,
+            x2: this.intersection.x + 30,
+            y1: this.intersection.y - 30,
+            y2: this.intersection.y + 30
+        };
+
+        // Функция проверки, находится ли машина в зоне перекрестка
+        const inIntersectionZone = vehicle => (
+            vehicle.x > INTERSECTION_ZONE.x1 &&
+            vehicle.x < INTERSECTION_ZONE.x2 &&
+            vehicle.y > INTERSECTION_ZONE.y1 &&
+            vehicle.y < INTERSECTION_ZONE.y2
+        );
+
+        // Функция проверки, есть ли место для выезда с перекрестка
+        const hasExitSpace = vehicle => {
+            const ahead = this.vehicles.find(v => {
+                if (v === vehicle) return false;
+                switch(vehicle.direction) {
+                    case 'north':
+                        return v.direction === 'north' && 
+                               v.y < vehicle.y && 
+                               v.y > INTERSECTION_ZONE.y1 - 50;
+                    case 'south':
+                        return v.direction === 'south' && 
+                               v.y > vehicle.y && 
+                               v.y < INTERSECTION_ZONE.y2 + 50;
+                    case 'east':
+                        return v.direction === 'east' && 
+                               v.x > vehicle.x && 
+                               v.x < INTERSECTION_ZONE.x2 + 50;
+                    case 'west':
+                        return v.direction === 'west' && 
+                               v.x < vehicle.x && 
+                               v.x > INTERSECTION_ZONE.x1 - 50;
+                }
+            });
+            return !ahead;
+        };
 
         const atIntersection = vehicle => (
             vehicle.y > this.intersection.y - 30 &&
@@ -229,21 +265,27 @@ class TrafficSimulation {
             }
 
             if (canPass) {
-                // На зеленый свет - едем
-                if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0) {
+                // Если машина приближается к перекрестку
+                if (!inIntersectionZone(vehicle)) {
+                    // Проверяем, можно ли въехать на перекресток
+                    if (hasExitSpace(vehicle)) {
+                        vehicle.currentSpeed.dx = vehicle.maxSpeed.dx;
+                        vehicle.currentSpeed.dy = vehicle.maxSpeed.dy;
+                    } else {
+                        // Останавливаемся перед перекрестком
+                        vehicle.currentSpeed.dx = 0;
+                        vehicle.currentSpeed.dy = 0;
+                        vehicle.waiting = true;
+                    }
+                } else {
+                    // Если машина уже на перекрестке - продолжает движение
                     vehicle.currentSpeed.dx = vehicle.maxSpeed.dx;
                     vehicle.currentSpeed.dy = vehicle.maxSpeed.dy;
+                    vehicle.waiting = false;
                 }
-            } else if (isYellowLight) {
-                // На желтый - если не в перекрестке, останавливаемся
-                if (!atIntersection(vehicle) && distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
-                    vehicle.currentSpeed.dx = 0;
-                    vehicle.currentSpeed.dy = 0;
-                    vehicle.waiting = true;
-                }
-            } else if (isRedLight) {
-                // На красный - останавливаемся перед перекрестком
-                if (!atIntersection(vehicle) && distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
+            } else if (isYellowLight || isRedLight) {
+                // На желтый или красный - останавливаемся перед перекрестком если не в нем
+                if (!inIntersectionZone(vehicle) && distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
                     vehicle.waiting = true;
