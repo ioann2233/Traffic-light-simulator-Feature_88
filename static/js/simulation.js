@@ -42,36 +42,23 @@ class TrafficSimulation {
             }
             
             const data = await response.json();
-            
-            // Гарантируем создание машин в обоих направлениях
-            if (data.ns && data.ns.count > 0) {
-                ['north', 'south'].forEach(direction => {
-                    const count = Math.ceil(data.ns.count / 2);
-                    for (let i = 0; i < count; i++) {
-                        this.spawnVehicle(direction);
-                    }
-                });
-            }
-            
-            if (data.ew && data.ew.count > 0) {
-                ['east', 'west'].forEach(direction => {
-                    const count = Math.ceil(data.ew.count / 2);
-                    for (let i = 0; i < count; i++) {
-                        this.spawnVehicle(direction);
-                    }
-                });
-            }
-            
             this.updateTrafficData(data);
+            
+            // Обновляем состояние светофоров на основе данных
+            if (window.controller) {
+                window.controller.updateTrafficLights(data);
+            }
         } catch (error) {
             console.error('Error fetching camera data:', error);
-            // Используем более реалистичные данные при ошибке
+            // Используем последние известные данные
             const fallbackData = {
                 ns: { count: 3, waiting: 1, avgSpeed: 0.6 },
                 ew: { count: 3, waiting: 1, avgSpeed: 0.6 }
             };
-            this.updateVehiclesFromCamera(fallbackData);
             this.updateTrafficData(fallbackData);
+            if (window.controller) {
+                window.controller.updateTrafficLights(fallbackData);
+            }
         }
     }
 
@@ -331,7 +318,8 @@ class TrafficSimulation {
         const INTERSECTION_ZONE = 10;
         
         const position = vehicle.mesh.position;
-        const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && Math.abs(position.z) < INTERSECTION_ZONE;
+        const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
+                              Math.abs(position.z) < INTERSECTION_ZONE;
         const beforeStopLine = 
             (vehicle.direction === 'north' && position.z > STOP_LINE) ||
             (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
@@ -341,16 +329,25 @@ class TrafficSimulation {
         const lightState = this.trafficLights[vehicle.direction].state;
         
         if (inIntersection) {
+            // Машины в перекрестке всегда продолжают движение на полной скорости
             vehicle.waiting = false;
             vehicle.currentSpeed = {...vehicle.maxSpeed};
-        } else if (beforeStopLine) {
+            return; // Выходим, чтобы не проверять другие условия
+        }
+        
+        if (beforeStopLine) {
             if (lightState === 'red') {
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
             } else if (lightState === 'yellow') {
-                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
-                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+                const shouldStop = Math.random() < 0.7; // 70% вероятность остановки на желтый
+                if (shouldStop) {
+                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
+                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+                } else {
+                    vehicle.currentSpeed = {...vehicle.maxSpeed};
+                }
             } else {
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};

@@ -80,16 +80,12 @@ class QLearning {
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
-        this.minGreenTime = 5000;
-        this.maxGreenTime = 15000;
-        this.yellowTime = 3000;
-        this.transitionDelay = 500;
+        this.qLearning = new QLearning();
+        this.lastState = null;
+        this.lastAction = null;
         
-        // Добавляем массив для хранения данных с камер
-        this.cameraData = {
-            cameras: {},
-            lastUpdate: Date.now()
-        };
+        // Запускаем автоматическое управление светофорами
+        this.startAutomaticControl();
         
     // Метод для обновления данных с камер
     updateCameraData(cameraId, data) {
@@ -146,6 +142,51 @@ class TrafficController {
 
     calculateGreenTime(trafficData) {
         const currentState = this.qLearning.getState(trafficData);
+    startAutomaticControl() {
+        setInterval(() => {
+            const trafficData = this.simulation.getTrafficData();
+            const currentState = this.qLearning.getState(trafficData);
+            const action = this.qLearning.getAction(currentState);
+            
+            // Обновляем Q-таблицу
+            if (this.lastState && this.lastAction) {
+                const reward = this.calculateReward(trafficData);
+                this.qLearning.updateQ(this.lastState, this.lastAction, reward, currentState);
+            }
+            
+            this.lastState = currentState;
+            this.lastAction = action;
+            
+            // Применяем действие
+            this.updateTrafficLights(action);
+        }, 1000); // Проверка каждую секунду
+    }
+
+    updateTrafficLights(action) {
+        const nsWaiting = this.simulation.getTrafficData().ns.waiting;
+        const ewWaiting = this.simulation.getTrafficData().ew.waiting;
+        
+        // Определяем, какое направление нуждается в зеленом сигнале
+        if (nsWaiting > ewWaiting * 1.5) {
+            // Больше машин ждет в направлении север-юг
+            this.setLights('ns', 'green');
+            this.setLights('ew', 'red');
+        } else if (ewWaiting > nsWaiting * 1.5) {
+            // Больше машин ждет в направлении восток-запад
+            this.setLights('ns', 'red');
+            this.setLights('ew', 'green');
+        }
+    }
+
+    setLights(direction, state) {
+        if (direction === 'ns') {
+            this.simulation.trafficLights.north.state = state;
+            this.simulation.trafficLights.south.state = state;
+        } else {
+            this.simulation.trafficLights.east.state = state;
+            this.simulation.trafficLights.west.state = state;
+        }
+    }
         const action = this.qLearning.getAction(currentState);
         
         // Вычисление награды
