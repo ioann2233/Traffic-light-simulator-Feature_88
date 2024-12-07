@@ -27,10 +27,14 @@ class TrafficSimulation {
     initializeScene() {
         // Create roads
         const northSouthRoad = TrafficModels.createRoad();
-        northSouthRoad.rotation.z = Math.PI / 2;
+        northSouthRoad.rotation.x = -Math.PI / 2; // Horizontal
+        northSouthRoad.rotation.y = Math.PI / 2;
+        northSouthRoad.position.y = -0.1; // Slightly below to avoid z-fighting
         this.scene3D.addObject(northSouthRoad);
         
         const eastWestRoad = TrafficModels.createRoad();
+        eastWestRoad.rotation.x = -Math.PI / 2;
+        eastWestRoad.position.y = -0.1;
         this.scene3D.addObject(eastWestRoad);
         
         // Create traffic lights
@@ -163,6 +167,33 @@ class TrafficSimulation {
                 waiting: this.vehicles.filter(v => 
                     (v.direction === 'east' || v.direction === 'west') && v.waiting
                 ).length,
+    updateTrafficLights() {
+        const updateLight = (light, state) => {
+            const lights = light.children.filter(child => child instanceof THREE.Mesh);
+            lights.forEach(mesh => {
+                mesh.material.emissiveIntensity = 0.1;
+            });
+            
+            switch(state) {
+                case 'red':
+                    lights[0].material.emissiveIntensity = 1;
+                    break;
+                case 'yellow':
+                    lights[1].material.emissiveIntensity = 1;
+                    break;
+                case 'green':
+                    lights[2].material.emissiveIntensity = 1;
+                    break;
+            }
+        };
+        
+        // Update all traffic lights
+        updateLight(this.northLight, this.trafficLights.north.state);
+        updateLight(this.southLight, this.trafficLights.south.state);
+        updateLight(this.eastLight, this.trafficLights.east.state);
+        updateLight(this.westLight, this.trafficLights.west.state);
+    }
+
                 avgSpeed: this.cameraData.eastWest.speed
             }
         };

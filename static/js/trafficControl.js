@@ -164,6 +164,9 @@ class TrafficController {
                 this.simulation.trafficLights.south.state = 'red';
             }
         }
+        
+        // Update traffic lights in 3D scene
+        this.simulation.updateTrafficLights();
         this.lastStateChange = Date.now();
     }
 

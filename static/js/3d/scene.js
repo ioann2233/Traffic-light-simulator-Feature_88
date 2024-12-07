@@ -2,6 +2,7 @@ class Scene3D {
     constructor(container) {
         this.container = container;
         this.scene = new THREE.Scene();
+        this.scene.background = new THREE.Color(0x87CEEB); // Sky blue color
         this.camera = new THREE.PerspectiveCamera(75, container.offsetWidth / container.offsetHeight, 0.1, 1000);
         
         // Setup renderer
