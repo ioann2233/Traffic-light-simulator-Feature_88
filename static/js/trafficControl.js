@@ -1,3 +1,82 @@
+class QLearning {
+    constructor() {
+        this.qTable = {};
+        this.learningRate = 0.1;
+        this.discountFactor = 0.9;
+        this.epsilon = 0.1;
+    }
+    
+    getState(trafficData) {
+        // Дискретизация состояния
+        const nsWaiting = Math.min(Math.floor(trafficData.ns.waiting / 5) * 5, 20);
+        const ewWaiting = Math.min(Math.floor(trafficData.ew.waiting / 5) * 5, 20);
+        const nsSpeed = Math.floor(trafficData.ns.avgSpeed);
+        const ewSpeed = Math.floor(trafficData.ew.avgSpeed);
+        return `${nsWaiting}-${ewWaiting}-${nsSpeed}-${ewSpeed}`;
+    }
+    
+    getAction(state) {
+        // Epsilon-greedy стратегия
+        if (Math.random() < this.epsilon) {
+            return {
+                nsTime: Math.random() * 10000 + 5000,
+                ewTime: Math.random() * 10000 + 5000
+            };
+        }
+        
+        if (!this.qTable[state]) {
+            this.qTable[state] = {};
+        }
+        
+        // Выбор действия с максимальным Q-значением
+        let maxQ = -Infinity;
+        let bestAction = null;
+        
+        for (let action in this.qTable[state]) {
+            if (this.qTable[state][action] > maxQ) {
+                maxQ = this.qTable[state][action];
+                bestAction = JSON.parse(action);
+            }
+        }
+        
+        if (!bestAction) {
+            bestAction = {
+                nsTime: 7000,
+                ewTime: 7000
+            };
+        }
+        
+        return bestAction;
+    }
+    
+    updateQ(state, action, reward, nextState) {
+        const actionKey = JSON.stringify(action);
+        
+        if (!this.qTable[state]) {
+            this.qTable[state] = {};
+        }
+        if (!this.qTable[state][actionKey]) {
+            this.qTable[state][actionKey] = 0;
+        }
+        
+        // Q-learning формула обновления
+        const maxNextQ = this.getMaxQ(nextState);
+        this.qTable[state][actionKey] += this.learningRate * (
+            reward + this.discountFactor * maxNextQ - this.qTable[state][actionKey]
+        );
+    }
+    
+    getMaxQ(state) {
+        if (!this.qTable[state]) return 0;
+        
+        let maxQ = -Infinity;
+        for (let action in this.qTable[state]) {
+            maxQ = Math.max(maxQ, this.qTable[state][action]);
+        }
+        return maxQ === -Infinity ? 0 : maxQ;
+    }
+}
+
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
@@ -5,49 +84,36 @@ class TrafficController {
         this.maxGreenTime = 15000;
         this.yellowTime = 2000;
         
-        // Веса нейронной сети
-        this.weights = {
-            waiting: 2.5,
-            speed: 1.5,
-            queue: 2.0,
-            timeInState: 1.0
-        };
+        this.qLearning = new QLearning();
+        this.lastState = null;
+        this.lastAction = null;
         
         this.lastStateChange = Date.now();
         this.startControl();
     }
 
     calculateGreenTime(trafficData) {
-        const { ns, ew } = trafficData;
-        const timeInCurrentState = (Date.now() - this.lastStateChange) / 1000;
+        const currentState = this.qLearning.getState(trafficData);
+        const action = this.qLearning.getAction(currentState);
         
-        // Нормализация входных данных
-        const normalize = (value, max) => value / max;
+        // Вычисление награды
+        if (this.lastState) {
+            const reward = this.calculateReward(trafficData);
+            this.qLearning.updateQ(this.lastState, this.lastAction, reward, currentState);
+        }
         
-        // Вычисление скоров через нейронную сеть
-        const calculateNeuralScore = (data, timeInState) => {
-            return (
-                this.weights.waiting * normalize(data.waiting, 20) +
-                this.weights.speed * (1 - normalize(data.avgSpeed, 5)) +
-                this.weights.queue * normalize(data.count, 30) +
-                this.weights.timeInState * normalize(timeInState, 30)
-            );
-        };
+        this.lastState = currentState;
+        this.lastAction = action;
         
-        const nsScore = calculateNeuralScore(ns, timeInCurrentState);
-        const ewScore = calculateNeuralScore(ew, timeInCurrentState);
+        return { nsGreenTime: action.nsTime, ewGreenTime: action.ewTime };
+    }
+
+    calculateReward(trafficData) {
+        // Награда зависит от уменьшения количества машин в заторах
+        const totalWaiting = trafficData.ns.waiting + trafficData.ew.waiting;
+        const avgSpeed = (trafficData.ns.avgSpeed + trafficData.ew.avgSpeed) / 2;
         
-        // Динамическое время на основе нейронной сети
-        const totalScore = nsScore + ewScore;
-        const nsTimeRatio = nsScore / totalScore;
-        const ewTimeRatio = ewScore / totalScore;
-        
-        const nsTime = Math.min(this.maxGreenTime,
-            this.minGreenTime + (this.maxGreenTime - this.minGreenTime) * nsTimeRatio);
-        const ewTime = Math.min(this.maxGreenTime,
-            this.minGreenTime + (this.maxGreenTime - this.minGreenTime) * ewTimeRatio);
-            
-        return { nsGreenTime: nsTime, ewGreenTime: ewTime };
+        return -totalWaiting + avgSpeed;
     }
 
     async controlCycle() {
