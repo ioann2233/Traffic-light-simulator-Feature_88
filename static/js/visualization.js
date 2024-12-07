@@ -35,8 +35,11 @@ class TrafficVisualization {
     }
 
     updateChart() {
-        if (!window.simulation) return;
-
+        if (!window.simulation || typeof window.simulation.getTrafficData !== 'function') {
+            console.warn('Simulation not ready');
+            return;
+        }
+        
         const trafficData = window.simulation.getTrafficData();
         const timestamp = new Date().toLocaleTimeString();
 
