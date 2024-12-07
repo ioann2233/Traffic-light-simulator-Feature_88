@@ -4,6 +4,8 @@ class QLearning {
         this.learningRate = 0.1;
         this.discountFactor = 0.9;
         this.epsilon = 0.1;
+        this.minGreenTime = 20000; // 20 секунд
+        this.maxGreenTime = 160000; // 160 секунд
     }
     
     getState(trafficData) {
@@ -16,11 +18,10 @@ class QLearning {
     }
     
     getAction(state) {
-        // Epsilon-greedy стратегия
         if (Math.random() < this.epsilon) {
             return {
-                nsTime: Math.random() * 10000 + 5000,
-                ewTime: Math.random() * 10000 + 5000
+                nsTime: Math.random() * (this.maxGreenTime - this.minGreenTime) + this.minGreenTime,
+                ewTime: Math.random() * (this.maxGreenTime - this.minGreenTime) + this.minGreenTime
             };
         }
         
@@ -28,7 +29,6 @@ class QLearning {
             this.qTable[state] = {};
         }
         
-        // Выбор действия с максимальным Q-значением
         let maxQ = -Infinity;
         let bestAction = null;
         
@@ -41,8 +41,8 @@ class QLearning {
         
         if (!bestAction) {
             bestAction = {
-                nsTime: 7000,
-                ewTime: 7000
+                nsTime: this.minGreenTime,
+                ewTime: this.minGreenTime
             };
         }
         
@@ -161,14 +161,19 @@ class TrafficController {
     }
 
     calculateReward(trafficData) {
-        const totalWaiting = 
-            trafficData.ns.waiting + 
-            trafficData.ew.waiting + 
-            (trafficData.pedestrians?.waiting || 0) * 2 + // Пешеходы имеют больший вес
-            (trafficData.trams?.approaching || 0) * 3;    // Трамваи имеют наивысший приоритет
+        // Штраф за каждую ожидающую машину
+        const waitingPenalty = 
+            (trafficData.ns.waiting + trafficData.ew.waiting) * -1;
         
-        // Награда тем больше, чем меньше ожидающих
-        return Math.exp(-totalWaiting / 10);
+        // Награда за пропущенные машины
+        const throughputReward = 
+            (trafficData.ns.count + trafficData.ew.count) * 2;
+        
+        // Дополнительный штраф за заторы с нескольких сторон
+        const multiDirectionPenalty = 
+            (trafficData.ns.waiting > 0 && trafficData.ew.waiting > 0) ? -10 : 0;
+        
+        return Math.exp((waitingPenalty + throughputReward + multiDirectionPenalty) / 20);
     }
 
     async controlCycle() {
