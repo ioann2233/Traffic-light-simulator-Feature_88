@@ -42,14 +42,33 @@ class TrafficSimulation {
             }
             
             const data = await response.json();
-            this.updateVehiclesFromCamera(data);
+            
+            // Гарантируем создание машин в обоих направлениях
+            if (data.ns && data.ns.count > 0) {
+                ['north', 'south'].forEach(direction => {
+                    const count = Math.ceil(data.ns.count / 2);
+                    for (let i = 0; i < count; i++) {
+                        this.spawnVehicle(direction);
+                    }
+                });
+            }
+            
+            if (data.ew && data.ew.count > 0) {
+                ['east', 'west'].forEach(direction => {
+                    const count = Math.ceil(data.ew.count / 2);
+                    for (let i = 0; i < count; i++) {
+                        this.spawnVehicle(direction);
+                    }
+                });
+            }
+            
             this.updateTrafficData(data);
         } catch (error) {
             console.error('Error fetching camera data:', error);
-            // Используем симулированные данные при ошибке
+            // Используем более реалистичные данные при ошибке
             const fallbackData = {
-                ns: { count: 2, waiting: 1, avgSpeed: 0.5 },
-                ew: { count: 2, waiting: 1, avgSpeed: 0.5 }
+                ns: { count: 3, waiting: 1, avgSpeed: 0.6 },
+                ew: { count: 3, waiting: 1, avgSpeed: 0.6 }
             };
             this.updateVehiclesFromCamera(fallbackData);
             this.updateTrafficData(fallbackData);
@@ -200,7 +219,12 @@ class TrafficSimulation {
     }
 
     setupSpawnInterval() {
-        setInterval(() => this.spawnVehicle(), 3000);
+        // Спавн машин для обоих направлений
+        setInterval(() => {
+            const directions = ['north', 'south', 'east', 'west'];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            this.spawnVehicle(direction);
+        }, 2000);
     }
 
     animate() {
@@ -336,8 +360,8 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 25;  // Увеличенная безопасная дистанция
-        const SLOW_DISTANCE = 40;  // Увеличенная дистанция замедления
+        const SAFE_DISTANCE = 35;  // Увеличенная безопасная дистанция
+        const SLOW_DISTANCE = 50;  // Увеличенная дистанция замедления
         
         let shouldStop = false;
         let shouldSlow = false;

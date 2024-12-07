@@ -94,7 +94,8 @@ class TrafficModels {
 
     static createTrafficLight(direction) {
         const group = new THREE.Group();
-        group.userData.direction = direction; // Добавляем направление в userData
+        group.userData.direction = direction;
+        group.userData.clickable = true;
         
         // Столб светофора
         const post = new THREE.Mesh(
@@ -107,16 +108,12 @@ class TrafficModels {
         // Корпус светофора
         const housing = new THREE.Mesh(
             new THREE.BoxGeometry(3, 9, 3),
-            new THREE.MeshStandardMaterial({ 
-                color: 0x1a1a1a,
-                roughness: 0.7
-            })
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
         );
         housing.position.y = 13;
         group.add(housing);
         
-        // Создание сигналов светофора
-        const createLightBulb = (color, y) => {
+        const createLight = (color, y) => {
             // Черное основание
             const base = new THREE.Mesh(
                 new THREE.CircleGeometry(1.2, 32),
@@ -125,7 +122,7 @@ class TrafficModels {
             base.position.set(0, y, 1.52);
             group.add(base);
             
-            // Внутренний свет
+            // Светящийся элемент
             const light = new THREE.Mesh(
                 new THREE.SphereGeometry(1),
                 new THREE.MeshStandardMaterial({
@@ -138,20 +135,33 @@ class TrafficModels {
             );
             light.position.set(0, y, 1.5);
             
-            // Добавляем точечный свет для эффекта свечения
-            const pointLight = new THREE.PointLight(color, 0.1, 3);
-            pointLight.position.set(0, y, 1.5);
-            light.userData.pointLight = pointLight;
+            // Увеличенное свечение
+            const glow = new THREE.PointLight(color, 0, 5);
+            glow.position.set(0, y, 1.5);
+            light.userData.pointLight = glow;
+            
+            // Добавление ореола свечения
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: color,
+                transparent: true,
+                opacity: 0.2
+            });
+            const glowSphere = new THREE.Mesh(
+                new THREE.SphereGeometry(1.5),
+                glowMaterial
+            );
+            glowSphere.position.set(0, y, 1.5);
             
             group.add(light);
-            group.add(pointLight);
+            group.add(glow);
+            group.add(glowSphere);
             return light;
         };
         
-        // Создаем сигналы
-        const redLight = createLightBulb(0xff0000, 16);    // Красный
-        const yellowLight = createLightBulb(0xffff00, 13); // Желтый
-        const greenLight = createLightBulb(0x00ff00, 10);  // Зеленый
+        // Создаем сигналы с более ярким свечением
+        createLight(0xff0000, 16);  // Красный
+        createLight(0xffff00, 13);  // Желтый
+        createLight(0x00ff00, 10);  // Зеленый
         
         return group;
     }
