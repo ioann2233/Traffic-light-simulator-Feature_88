@@ -26,7 +26,7 @@ class TrafficSimulation {
             height: 60
         };
         
-        this.spawnInterval = setInterval(() => this.spawnVehicle(), 800); // Adjusted spawn rate to 800ms to prevent congestion
+        this.spawnInterval = setInterval(() => this.spawnVehicle(), 500); // каждые 500мс
         console.log('TrafficSimulation initialized successfully');
         this.animate();
     }
@@ -43,24 +43,24 @@ class TrafficSimulation {
                 x = this.intersection.x - 15;
                 y = this.canvas.height;
                 dx = 0;
-                dy = -3;
+                dy = -2; // Уменьшена скорость
                 break;
             case 'south':
                 x = this.intersection.x + 15;
                 y = 0;
                 dx = 0;
-                dy = 3;
+                dy = 2;  // Уменьшена скорость
                 break;
             case 'east':
                 x = 0;
                 y = this.intersection.y - 15;
-                dx = 3;
+                dx = 2;  // Уменьшена скорость
                 dy = 0;
                 break;
             case 'west':
                 x = this.canvas.width;
                 y = this.intersection.y + 15;
-                dx = -3;
+                dx = -2; // Уменьшена скорость
                 dy = 0;
                 break;
         }
@@ -133,6 +133,8 @@ class TrafficSimulation {
         const ACCELERATION_RATE = 0.5;  // ускорение
         const DECELERATION_RATE = 1;    // торможение
         const SPEED_CHANGE_RATE = 0.8; // коэффициент изменения скорости
+        const DECISION_ZONE = 100; // Зона принятия решения при желтом сигнале
+        const CRITICAL_ZONE = 30;  // Зона обязательного проезда при желтом сигнале
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
 
         const accelerateVehicle = (current, max, accelerationRate) => {
@@ -164,6 +166,8 @@ class TrafficSimulation {
                 Math.abs(vehicle.y - this.intersection.y) < STOP_LINE_DISTANCE * 1.5 &&
                 Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
             );
+            
+            const isRedLight = !canPass && isApproachingIntersection;
 
             // Проверка красного света и остановки
             if (isRedLight && isAtStopLine) {
@@ -314,16 +318,27 @@ class TrafficSimulation {
             vehicle.waiting = shouldStop || shouldSlow;
             vehicle.blocked = shouldStop;
 
-            // Update position
+            // Улучшенная логика движения
+            if (canPass && !shouldStop) {
+                // Плавное ускорение
+                vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
+                vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
+            } else if (shouldSlow) {
+                // Плавное замедление
+                vehicle.currentSpeed.dx *= 0.95;
+                vehicle.currentSpeed.dy *= 0.95;
+            }
+
+            // Обновление позиции всегда
             vehicle.x += vehicle.currentSpeed.dx;
             vehicle.y += vehicle.currentSpeed.dy;
 
             // Remove vehicles that are off screen (wider boundaries)
             return !(
-                vehicle.x < -100 ||
-                vehicle.x > this.canvas.width + 100 ||
-                vehicle.y < -100 ||
-                vehicle.y > this.canvas.height + 100
+                vehicle.x < -50 ||  // Смягчены условия удаления
+                vehicle.x > this.canvas.width + 50 ||
+                vehicle.y < -50 ||
+                vehicle.y > this.canvas.height + 50
             );
         });
     }
