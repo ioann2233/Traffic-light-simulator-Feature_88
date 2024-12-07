@@ -40,42 +40,17 @@ class TrafficModels {
     }
 
     static createVehicle() {
-        const group = new THREE.Group();
-        
-        // Main vehicle body
         const vehicleGeometry = new THREE.BoxGeometry(8, 4, 12);
         const vehicleMaterial = new THREE.MeshStandardMaterial({ 
             color: Math.random() * 0xffffff,
             roughness: 0.5,
             metalness: 0.5
         });
-        const vehicleBody = new THREE.Mesh(vehicleGeometry, vehicleMaterial);
-        vehicleBody.castShadow = true;
-        vehicleBody.receiveShadow = true;
-        group.add(vehicleBody);
-
-        // Add turn signals
-        const signalGeometry = new THREE.BoxGeometry(0.8, 0.8, 0.8);
-        const leftSignalMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffaa00,
-            emissive: 0xffaa00,
-            emissiveIntensity: 0
-        });
-        const rightSignalMaterial = leftSignalMaterial.clone();
-        
-        const leftSignal = new THREE.Mesh(signalGeometry, leftSignalMaterial);
-        const rightSignal = new THREE.Mesh(signalGeometry, rightSignalMaterial);
-        
-        leftSignal.position.set(-4, 0, -6);
-        rightSignal.position.set(4, 0, -6);
-        
-        group.add(leftSignal);
-        group.add(rightSignal);
-        
-        // Set initial position
-        group.position.y = 2;
-        
-        return group;
+        const vehicle = new THREE.Mesh(vehicleGeometry, vehicleMaterial);
+        vehicle.position.y = 2;
+        vehicle.castShadow = true;
+        vehicle.receiveShadow = true;
+        return vehicle;
     }
     
     static createCameraView() {
