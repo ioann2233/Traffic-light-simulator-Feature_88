@@ -356,16 +356,14 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 45;
-        const SLOW_DISTANCE = 60;
+        const SAFE_DISTANCE = 60; // Увеличено безопасное расстояние
+        const SLOW_DISTANCE = 80;
         const INTERSECTION_ZONE = 10;
         
         const inIntersection = Math.abs(vehicle.mesh.position.x) < INTERSECTION_ZONE && 
                               Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE;
         
-        if (inIntersection) {
-            return;
-        }
+        if (inIntersection) return;
         
         this.vehicles.forEach(other => {
             if (other === vehicle) return;
@@ -388,8 +386,9 @@ class TrafficSimulation {
                         vehicle.currentSpeed.dx = 0;
                         vehicle.currentSpeed.dy = 0;
                     } else if (distance < SLOW_DISTANCE) {
-                        vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.5;
-                        vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.5;
+                        const slowDownFactor = (distance - SAFE_DISTANCE) / (SLOW_DISTANCE - SAFE_DISTANCE);
+                        vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+                        vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
                     }
                 }
             }

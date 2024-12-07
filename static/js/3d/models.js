@@ -184,13 +184,11 @@ class TrafficModels {
             );
             light.position.set(0, y, 1.5);
             
-            // Усиленное свечение
-            const glow = new THREE.PointLight(color, 0, 8); // Увеличен радиус свечения
+            const glow = new THREE.PointLight(color, 0, 10);
             glow.position.set(0, y, 1.5);
             
-            // Более заметный ореол
             const glowSphere = new THREE.Mesh(
-                new THREE.SphereGeometry(1.5), // Увеличен размер ореола
+                new THREE.SphereGeometry(2),
                 new THREE.MeshBasicMaterial({
                     color: color,
                     transparent: true,

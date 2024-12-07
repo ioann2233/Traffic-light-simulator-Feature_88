@@ -111,19 +111,16 @@ class TrafficController {
             // Плавное уменьшение времени
             this.currentPhase.timeLeft -= 100;
             
-            // Обновляем отображение светофора каждые 100мс
-            this.updateTrafficLights();
-            
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
                     // Плавный переход на желтый
                     this.currentPhase.state = 'yellow';
                     this.currentPhase.timeLeft = 5000;
-                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
+                    this.setLights(this.currentPhase.direction, 'yellow');
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Плавный переход на красный
+                    // Переход на красный и смена направления
                     this.currentPhase.state = 'red';
-                    this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
+                    this.setLights(this.currentPhase.direction, 'red');
                     
                     // Меняем направление
                     this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
@@ -136,13 +133,44 @@ class TrafficController {
                     // Устанавливаем время в пределах от 20 до 160 секунд
                     this.currentPhase.timeLeft = Math.max(20000, Math.min(160000, nextGreenTime));
                     
-                    // Плавный переход на зеленый для нового направления
-                    this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
-                    this.currentPhase.state = 'green';
+                    // Устанавливаем зеленый для нового направления
+                    this.setLights(this.currentPhase.direction, 'green');
                 }
             }
+            
+            // Обновляем свечение светофоров
+            this.updateLightIntensities();
         }, 100);
     }
+    
+    setLights(direction, state) {
+        const directions = direction === 'ns' ? ['north', 'south'] : ['east', 'west'];
+        const oppositeDirections = direction === 'ns' ? ['east', 'west'] : ['north', 'south'];
+        
+        directions.forEach(dir => {
+            this.simulation.trafficLights[dir].state = state;
+        });
+        
+        if (state === 'green') {
+            oppositeDirections.forEach(dir => {
+                this.simulation.trafficLights[dir].state = 'red';
+            });
+        }
+    }
+    
+    updateLightIntensities() {
+        Object.keys(this.simulation.trafficLights).forEach(direction => {
+            const lightMesh = this.simulation[direction + 'Light'];
+            if (!lightMesh || !lightMesh.userData.lights) return;
+            
+            const state = this.simulation.trafficLights[direction].state;
+            Object.entries(lightMesh.userData.lights).forEach(([lightState, elements]) => {
+                const isActive = lightState === state;
+                elements.light.material.emissiveIntensity = isActive ? 1 : 0;
+                elements.glow.intensity = isActive ? 2 : 0;
+                elements.glowSphere.material.opacity = isActive ? 0.3 : 0;
+            });
+        });
     }
 
     updateTrafficLights(action) {
