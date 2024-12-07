@@ -95,54 +95,41 @@ class TrafficModels {
     static createTrafficLight() {
         const group = new THREE.Group();
         
-        // Столб
+        // Уменьшенный размер столба
         const post = new THREE.Mesh(
-            new THREE.CylinderGeometry(0.5, 0.5, 20),
+            new THREE.CylinderGeometry(0.3, 0.3, 12),
             new THREE.MeshStandardMaterial({ color: 0x333333 })
         );
-        post.position.y = 10;
+        post.position.y = 6;
         group.add(post);
         
-        // Корпус светофора
+        // Уменьшенный корпус светофора
         const housing = new THREE.Mesh(
-            new THREE.BoxGeometry(6, 15, 6),
+            new THREE.BoxGeometry(3, 9, 3),
             new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
         );
-        housing.position.y = 22;
+        housing.position.y = 13;
         group.add(housing);
         
-        // Создание сигналов светофора с более яркими цветами и большим размером
+        // Создание сигналов светофора
         const createLight = (color, y) => {
-            // Основа сигнала (черный фон)
-            const background = new THREE.Mesh(
-                new THREE.CylinderGeometry(1.8, 1.8, 1, 16),
-                new THREE.MeshStandardMaterial({ color: 0x000000 })
-            );
-            background.rotation.x = Math.PI / 2;
-            background.position.set(0, y, 2.5);
-            
-            // Световой элемент
             const light = new THREE.Mesh(
-                new THREE.SphereGeometry(1.5),
+                new THREE.SphereGeometry(1),
                 new THREE.MeshStandardMaterial({
                     color: color,
                     emissive: color,
-                    emissiveIntensity: 0.1,
-                    transparent: true,
-                    opacity: 0.9
+                    emissiveIntensity: 0.1
                 })
             );
-            light.position.set(0, y, 2.5);
-            
-            group.add(background);
+            light.position.set(0, y, 0);
             group.add(light);
             return light;
         };
         
-        // Создаем сигналы с увеличенным размером
-        createLight(0xff0000, 26); // Красный
-        createLight(0xffff00, 22); // Желтый
-        createLight(0x00ff00, 18); // Зеленый
+        // Создаем сигналы с уменьшенным размером
+        const redLight = createLight(0xff0000, 15);    // Красный
+        const yellowLight = createLight(0xffff00, 13); // Желтый
+        const greenLight = createLight(0x00ff00, 11);  // Зеленый
         
         return group;
     }

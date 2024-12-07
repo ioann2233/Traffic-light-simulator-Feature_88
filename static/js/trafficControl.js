@@ -208,40 +208,36 @@ class TrafficController {
     async smoothTransition(direction, newState) {
         const updateLights = (dir, state) => {
             this.simulation.trafficLights[dir].state = state;
-            const lightMesh = this.simulation[dir + 'Light'];
-            if (lightMesh) {
-                const lights = lightMesh.children.filter(child => 
-                    child instanceof THREE.Mesh && 
-                    child.material.emissive
-                );
-                
-                // Сброс яркости всех сигналов
-                lights.forEach(light => {
-                    light.material.emissiveIntensity = 0.1;
-                });
-                
-                // Активация нужного сигнала с высокой яркостью
-                const lightIndex = state === 'red' ? 0 : state === 'yellow' ? 1 : 2;
-                if (lights[lightIndex]) {
-                    lights[lightIndex].material.emissiveIntensity = 1;
-                }
-            }
         };
 
         if (direction === 'ns') {
+            if (newState === 'yellow') {
+                // Проверяем наличие машин на перекрестке
+                const vehiclesInIntersection = this.simulation.vehicles.some(v => 
+                    (v.direction === 'north' || v.direction === 'south') &&
+                    Math.abs(v.mesh.position.x) < 10 && Math.abs(v.mesh.position.z) < 10
+                );
+                
+                if (vehiclesInIntersection) {
+                    // Даем дополнительное время для проезда
+                    await this.delay(2000);
+                }
+            }
             updateLights('north', newState);
             updateLights('south', newState);
-            if (newState === 'green') {
-                updateLights('east', 'red');
-                updateLights('west', 'red');
-            }
         } else {
+            if (newState === 'yellow') {
+                const vehiclesInIntersection = this.simulation.vehicles.some(v => 
+                    (v.direction === 'east' || v.direction === 'west') &&
+                    Math.abs(v.mesh.position.x) < 10 && Math.abs(v.mesh.position.z) < 10
+                );
+                
+                if (vehiclesInIntersection) {
+                    await this.delay(2000);
+                }
+            }
             updateLights('east', newState);
             updateLights('west', newState);
-            if (newState === 'green') {
-                updateLights('north', 'red');
-                updateLights('south', 'red');
-            }
         }
         
         await this.delay(500);

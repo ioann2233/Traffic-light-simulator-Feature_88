@@ -120,12 +120,12 @@ class TrafficSimulation {
 
     setupTrafficLights() {
         const positions = [
-            { direction: 'north', x: -15, z: 15, rotation: Math.PI },
-            { direction: 'south', x: 15, z: -15, rotation: 0 },
-            { direction: 'east', x: 15, z: 15, rotation: Math.PI / 2 },
-            { direction: 'west', x: -15, z: -15, rotation: -Math.PI / 2 }
+            { direction: 'north', x: -20, z: 20, rotation: Math.PI },    // Сдвинуты дальше от перекрестка
+            { direction: 'south', x: 20, z: -20, rotation: 0 },
+            { direction: 'east', x: 20, z: 20, rotation: Math.PI / 2 },
+            { direction: 'west', x: -20, z: -20, rotation: -Math.PI / 2 }
         ];
-
+        
         positions.forEach(pos => {
             const light = TrafficModels.createTrafficLight();
             light.position.set(pos.x, 0, pos.z);
@@ -240,41 +240,44 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const TRAFFIC_LIGHT_ZONE = 20;
-        const STOP_LINE = 10;
+        const STOP_LINE = 15;
+        const INTERSECTION_ZONE = 10;
         
-        // Проверяем положение машины относительно перекрестка
         const position = vehicle.mesh.position;
-        const beforeIntersection = 
+        const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && Math.abs(position.z) < INTERSECTION_ZONE;
+        const beforeStopLine = 
             (vehicle.direction === 'north' && position.z > STOP_LINE) ||
             (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
             (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
             (vehicle.direction === 'west' && position.x > STOP_LINE);
         
-        // Получаем состояние светофора для данного направления
         const lightState = this.trafficLights[vehicle.direction].state;
         
-        if (beforeIntersection) {
-            if (lightState === 'red' || lightState === 'yellow') {
-                // Остановка на красный или желтый
+        if (inIntersection) {
+            // Машина уже на перекрестке - позволяем проехать
+            vehicle.waiting = false;
+            vehicle.currentSpeed = {...vehicle.maxSpeed};
+        } else if (beforeStopLine) {
+            if (lightState === 'red') {
+                // Полная остановка на красный
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
-            } else if (lightState === 'green') {
-                // Движение на зеленый
+            } else if (lightState === 'yellow') {
+                // На желтый - замедляемся, но не останавливаемся полностью
+                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
+                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+            } else {
+                // На зеленый - полная скорость
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};
             }
-        } else {
-            // Если машина уже проехала стоп-линию, позволяем ей продолжить движение
-            vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
         }
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 15;
-        const SLOW_DISTANCE = 30;
+        const SAFE_DISTANCE = 20;  // Увеличенная безопасная дистанция
+        const SLOW_DISTANCE = 35;
         
         this.vehicles.forEach(other => {
             if (other !== vehicle && 
@@ -292,9 +295,9 @@ class TrafficSimulation {
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
                 } else if (distance < SLOW_DISTANCE) {
-                    // Замедление при средней дистанции
-                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.8;
-                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.8;
+                    // Плавное замедление при средней дистанции
+                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.5;
+                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.5;
                 }
             }
         });
