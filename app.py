@@ -87,13 +87,13 @@ def download():
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
-        data = request.json
-        camera_id = data.get('camera_id', 'cam1')
+        camera_id = request.json.get('camera_id', 'cam1') if request.json else 'cam1'
         
-        # Генерация более реалистичных данных
-        ns_count = random.randint(2, 8)
-        ew_count = random.randint(2, 8)
+        # Генерация реалистичных данных о трафике
+        ns_count = random.randint(3, 10)
+        ew_count = random.randint(3, 10)
         
+        # Вычисление ожидающих машин на основе светофоров
         ns_waiting = min(random.randint(0, ns_count), ns_count)
         ew_waiting = min(random.randint(0, ew_count), ew_count)
         
@@ -102,23 +102,50 @@ def update_camera_data():
             'ns': {
                 'count': ns_count,
                 'waiting': ns_waiting,
-                'avgSpeed': random.uniform(0.4, 0.8)
+                'avgSpeed': random.uniform(0.4, 0.8),
+                'turning': {
+                    'left': random.randint(0, 2),
+                    'right': random.randint(0, 2)
+                }
             },
             'ew': {
                 'count': ew_count,
                 'waiting': ew_waiting,
-                'avgSpeed': random.uniform(0.4, 0.8)
+                'avgSpeed': random.uniform(0.4, 0.8),
+                'turning': {
+                    'left': random.randint(0, 2),
+                    'right': random.randint(0, 2)
+                }
+            },
+            'pedestrians': {
+                'ns': random.randint(0, 5),
+                'ew': random.randint(0, 5)
             }
         }
         
         return jsonify(response_data)
     except Exception as e:
         print(f"Error in update_camera_data: {str(e)}")
+        # Возвращаем статические данные в случае ошибки
         return jsonify({
             'camera_id': 'cam1',
-            'ns': {'count': 3, 'waiting': 1, 'avgSpeed': 0.6},
-            'ew': {'count': 3, 'waiting': 1, 'avgSpeed': 0.6}
-        }), 200  # Возвращаем 200 вместо 400 для избежания ошибок
+            'ns': {
+                'count': 5,
+                'waiting': 2,
+                'avgSpeed': 0.6,
+                'turning': {'left': 1, 'right': 1}
+            },
+            'ew': {
+                'count': 5,
+                'waiting': 2,
+                'avgSpeed': 0.6,
+                'turning': {'left': 1, 'right': 1}
+            },
+            'pedestrians': {
+                'ns': 2,
+                'ew': 2
+            }
+        }), 200
 
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():
