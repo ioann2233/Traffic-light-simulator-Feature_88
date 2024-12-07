@@ -47,17 +47,19 @@ class TrafficModels {
             group.add(sideLine);
         });
         
-        // Прерывистые линии
+        // Разметка полос движения
         [-roadWidth/4, roadWidth/4].forEach(z => {
+            const laneMarkings = new THREE.Group();
             for(let x = -90; x < 90; x += 20) {
                 const dash = new THREE.Mesh(
                     new THREE.PlaneGeometry(10, 0.5),
                     lineMaterial
                 );
-                dash.rotation.x = -Math.PI / 2;
                 dash.position.set(x, 0.1, z);
-                group.add(dash);
+                dash.rotation.x = -Math.PI / 2;
+                laneMarkings.add(dash);
             }
+            group.add(laneMarkings);
         });
         
         return group;
@@ -93,56 +95,40 @@ class TrafficModels {
     static createTrafficLight() {
         const group = new THREE.Group();
         
-        // Post
-        const postGeometry = new THREE.CylinderGeometry(1, 1, 20);
-        const postMaterial = new THREE.MeshStandardMaterial({ color: 0x666666 });
-        const post = new THREE.Mesh(postGeometry, postMaterial);
-        post.castShadow = true;
+        // Столб светофора
+        const post = new THREE.Mesh(
+            new THREE.CylinderGeometry(0.5, 0.5, 15),
+            new THREE.MeshStandardMaterial({ color: 0x333333 })
+        );
+        post.position.y = 7.5;
         group.add(post);
         
-        // Lights housing
-        const housingGeometry = new THREE.BoxGeometry(4, 12, 4);
-        const housingMaterial = new THREE.MeshStandardMaterial({ color: 0x333333 });
-        const housing = new THREE.Mesh(housingGeometry, housingMaterial);
-        housing.position.y = 10;
-        housing.castShadow = true;
+        // Корпус светофора
+        const housing = new THREE.Mesh(
+            new THREE.BoxGeometry(4, 12, 4),
+            new THREE.MeshStandardMaterial({ color: 0x1a1a1a })
+        );
+        housing.position.y = 18;
         group.add(housing);
         
-        // Lights
-        const lightGeometry = new THREE.SphereGeometry(1.5);
-        const redLight = new THREE.Mesh(
-            lightGeometry,
-            new THREE.MeshStandardMaterial({ 
-                color: 0xff0000,
-                emissive: 0xff0000,
-                emissiveIntensity: 0.5
-            })
-        );
-        redLight.position.set(0, 14, 0);
+        // Создание световых элементов
+        const createLight = (color, y) => {
+            const bulb = new THREE.Mesh(
+                new THREE.SphereGeometry(1.2),
+                new THREE.MeshStandardMaterial({
+                    color: color,
+                    emissive: color,
+                    emissiveIntensity: 0.1
+                })
+            );
+            bulb.position.set(0, y, 0);
+            return bulb;
+        };
         
-        const yellowLight = new THREE.Mesh(
-            lightGeometry,
-            new THREE.MeshStandardMaterial({ 
-                color: 0xffff00,
-                emissive: 0xffff00,
-                emissiveIntensity: 0.5
-            })
-        );
-        yellowLight.position.set(0, 10, 0);
-        
-        const greenLight = new THREE.Mesh(
-            lightGeometry,
-            new THREE.MeshStandardMaterial({ 
-                color: 0x00ff00,
-                emissive: 0x00ff00,
-                emissiveIntensity: 0.5
-            })
-        );
-        greenLight.position.set(0, 6, 0);
-        
-        group.add(redLight);
-        group.add(yellowLight);
-        group.add(greenLight);
+        // Добавление цветных сигналов
+        group.add(createLight(0xff0000, 22)); // Красный
+        group.add(createLight(0xffff00, 18)); // Желтый
+        group.add(createLight(0x00ff00, 14)); // Зеленый
         
         return group;
     }

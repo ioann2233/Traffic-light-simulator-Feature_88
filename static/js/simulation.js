@@ -86,7 +86,8 @@ class TrafficSimulation {
     }
 
     isInCameraView(position) {
-        return Math.abs(position.x) < 50 && Math.abs(position.z) < 50;
+        // Убрать проверку видимости, т.к. нам нужны все машины
+        return true;
     }
 
     initializeScene() {
@@ -231,39 +232,66 @@ class TrafficSimulation {
 
     checkTrafficLights(vehicle) {
         const TRAFFIC_LIGHT_ZONE = 20;
+        const STOP_LINE = 10;
         
-        const inNorthZone = Math.abs(vehicle.mesh.position.z - 15) < TRAFFIC_LIGHT_ZONE && Math.abs(vehicle.mesh.position.x) < 10;
-        const inSouthZone = Math.abs(vehicle.mesh.position.z + 15) < TRAFFIC_LIGHT_ZONE && Math.abs(vehicle.mesh.position.x) < 10;
-        const inEastZone = Math.abs(vehicle.mesh.position.x - 15) < TRAFFIC_LIGHT_ZONE && Math.abs(vehicle.mesh.position.z) < 10;
-        const inWestZone = Math.abs(vehicle.mesh.position.x + 15) < TRAFFIC_LIGHT_ZONE && Math.abs(vehicle.mesh.position.z) < 10;
+        // Определяем зону действия светофора
+        const inIntersection = (
+            Math.abs(vehicle.mesh.position.x) < TRAFFIC_LIGHT_ZONE &&
+            Math.abs(vehicle.mesh.position.z) < TRAFFIC_LIGHT_ZONE
+        );
         
-        if ((inNorthZone && this.trafficLights.north.state !== 'green') ||
-            (inSouthZone && this.trafficLights.south.state !== 'green') ||
-            (inEastZone && this.trafficLights.east.state !== 'green') ||
-            (inWestZone && this.trafficLights.west.state !== 'green')) {
+        // Проверяем, находится ли машина перед стоп-линией
+        const beforeStopLine = {
+            north: vehicle.mesh.position.z > STOP_LINE,
+            south: vehicle.mesh.position.z < -STOP_LINE,
+            east: vehicle.mesh.position.x < -STOP_LINE,
+            west: vehicle.mesh.position.x > STOP_LINE
+        }[vehicle.direction];
+        
+        // Определяем цвет светофора для направления
+        const lightState = {
+            north: this.trafficLights.north.state,
+            south: this.trafficLights.south.state,
+            east: this.trafficLights.east.state,
+            west: this.trafficLights.west.state
+        }[vehicle.direction];
+        
+        // Останавливаем машину если она перед светофором и сигнал не зеленый
+        if (beforeStopLine && lightState !== 'green') {
             vehicle.waiting = true;
             vehicle.currentSpeed.dx = 0;
             vehicle.currentSpeed.dy = 0;
-        } else {
+        } else if (!inIntersection) {
             vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
+            // Постепенно восстанавливаем скорость
+            vehicle.currentSpeed.dx += (vehicle.maxSpeed.dx - vehicle.currentSpeed.dx) * 0.1;
+            vehicle.currentSpeed.dy += (vehicle.maxSpeed.dy - vehicle.currentSpeed.dy) * 0.1;
         }
     }
 
     checkCollisions(vehicle) {
         const SAFE_DISTANCE = 15;
+        const SLOW_DISTANCE = 30;
         
         this.vehicles.forEach(other => {
-            if (other !== vehicle && other.direction === vehicle.direction && other.lane === vehicle.lane) {
+            if (other !== vehicle && 
+                other.direction === vehicle.direction && 
+                other.lane === vehicle.lane) {
+                
                 const distance = Math.sqrt(
                     Math.pow(vehicle.mesh.position.x - other.mesh.position.x, 2) +
                     Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
                 );
                 
                 if (distance < SAFE_DISTANCE) {
+                    // Полная остановка при малой дистанции
                     vehicle.waiting = true;
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
+                } else if (distance < SLOW_DISTANCE) {
+                    // Замедление при средней дистанции
+                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.8;
+                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.8;
                 }
             }
         });
@@ -306,23 +334,30 @@ class TrafficSimulation {
     updateTrafficLights() {
         Object.keys(this.trafficLights).forEach(direction => {
             const lightMesh = this[direction + 'Light'];
-            if (lightMesh) {
-                const lights = lightMesh.children.filter(child => 
-                    child instanceof THREE.Mesh && 
-                    child.material.emissive
-                );
-                
-                // Reset all lights
-                lights.forEach(light => {
-                    light.material.emissiveIntensity = 0.1;
-                });
-                
-                // Set active light
-                const state = this.trafficLights[direction].state;
-                const lightIndex = state === 'red' ? 0 : state === 'yellow' ? 1 : 2;
-                if (lights[lightIndex]) {
-                    lights[lightIndex].material.emissiveIntensity = 1;
-                }
+            if (!lightMesh) return;
+            
+            const lights = lightMesh.children.filter(child => 
+                child instanceof THREE.Mesh && 
+                child.material.emissive
+            );
+            
+            // Сброс всех огней
+            lights.forEach(light => {
+                light.material.emissiveIntensity = 0.1;
+            });
+            
+            // Активация нужного сигнала
+            const state = this.trafficLights[direction].state;
+            const lightIndex = {
+                'red': 0,
+                'yellow': 1,
+                'green': 2
+            }[state];
+            
+            if (lights[lightIndex]) {
+                lights[lightIndex].material.emissiveIntensity = 1;
+                // Добавляем свечение для лучшей видимости
+                lights[lightIndex].material.emissiveIntensity = 1;
             }
         });
     }
