@@ -26,7 +26,7 @@ class TrafficSimulation {
             height: 60
         };
         
-        this.spawnInterval = setInterval(() => this.spawnVehicle(), 1000); // Reduced to 1000ms
+        this.spawnInterval = setInterval(() => this.spawnVehicle(), 500); // Increased spawn rate to 500ms
         console.log('TrafficSimulation initialized successfully');
         this.animate();
     }
@@ -126,13 +126,14 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 30; // Minimum safe distance between vehicles
+        const SAFE_DISTANCE = 40; // Increased safe distance between vehicles
         const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
         const SPEED_CHANGE_RATE = 0.05; // Rate for smooth speed changes
         const MIN_SPEED_RATIO = 0.2; // Minimum speed ratio
-        const STOP_LINE_DISTANCE = 40; // Distance to stop line before intersection
+        const STOP_LINE_DISTANCE = 50; // Increased distance to stop line before intersection
 
         this.vehicles = this.vehicles.filter(vehicle => {
+            const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
             const canPass = {
                 'north': this.trafficLights.north.state === 'green',
                 'south': this.trafficLights.south.state === 'green',
@@ -217,10 +218,15 @@ class TrafficSimulation {
                     if (distance !== undefined && distance < minDistance) {
                         minDistance = distance;
                         nearestVehicleAhead = otherVehicle;
-                        if (distance < SAFE_DISTANCE * 0.5) { // Critical distance
+                        if (distance < SAFE_DISTANCE * 0.7) { // More early braking
                             shouldStop = true;
+                            vehicle.currentSpeed.dx = 0;
+                            vehicle.currentSpeed.dy = 0;
                         } else if (distance < SAFE_DISTANCE) {
                             shouldSlow = true;
+                            // Smooth braking
+                            vehicle.currentSpeed.dx *= 0.8;
+                            vehicle.currentSpeed.dy *= 0.8;
                         }
                     }
                 }
@@ -284,12 +290,12 @@ class TrafficSimulation {
             vehicle.x += vehicle.currentSpeed.dx;
             vehicle.y += vehicle.currentSpeed.dy;
 
-            // Remove vehicles that are off screen
+            // Remove vehicles that are off screen (wider boundaries)
             return !(
-                vehicle.x < -50 ||
-                vehicle.x > this.canvas.width + 50 ||
-                vehicle.y < -50 ||
-                vehicle.y > this.canvas.height + 50
+                vehicle.x < -100 ||
+                vehicle.x > this.canvas.width + 100 ||
+                vehicle.y < -100 ||
+                vehicle.y > this.canvas.height + 100
             );
         });
     }
