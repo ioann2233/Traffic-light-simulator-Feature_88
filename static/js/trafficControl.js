@@ -101,10 +101,8 @@ class TrafficController {
         this.currentPhase = {
             direction: 'ns',
             state: 'green',
-            timeLeft: 60000  // 60 секунд начальное время
+            timeLeft: 60000
         };
-        
-        this.rlAgent = new QLearningAgent();
         
         setInterval(() => {
             const trafficData = this.simulation.getTrafficData();
@@ -113,42 +111,38 @@ class TrafficController {
             // Обновляем время фазы
             this.currentPhase.timeLeft -= 1000;
             
+            // Обновляем отображение светофора
+            this.updateTrafficLights();
+            
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
                     // Переход на желтый
                     this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = 5000; // 5 секунд на желтый
-                    this.setLights(this.currentPhase.direction, 'yellow');
+                    this.currentPhase.timeLeft = 5000;
+                    this.setLightsWithAnimation(this.currentPhase.direction, 'yellow');
                 } else if (this.currentPhase.state === 'yellow') {
                     // Переход на красный и смена направления
                     this.currentPhase.state = 'red';
-                    this.setLights(this.currentPhase.direction, 'red');
+                    this.setLightsWithAnimation(this.currentPhase.direction, 'red');
                     
                     // Меняем направление
                     this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                     
                     // Получаем оптимальное время от RL агента
                     const action = this.rlAgent.getAction(currentState);
-                    const nextGreenTime = this.currentPhase.direction === 'ns' ? action.nsTime : action.ewTime;
+                    const nextGreenTime = this.currentPhase.direction === 'ns' ? 
+                        action.nsTime : action.ewTime;
                     
                     // Устанавливаем время в пределах от 20 до 160 секунд
                     this.currentPhase.timeLeft = Math.max(20000, Math.min(160000, nextGreenTime));
                     
                     // Устанавливаем зеленый для нового направления
-                    this.setLights(this.currentPhase.direction, 'green');
+                    this.setLightsWithAnimation(this.currentPhase.direction, 'green');
                     this.currentPhase.state = 'green';
-                    
-                    // Обновляем Q-таблицу
-                    if (this.lastState && this.lastAction) {
-                        const reward = this.calculateReward(trafficData);
-                        this.rlAgent.updateQ(this.lastState, this.lastAction, reward, currentState);
-                    }
-                    
-                    this.lastState = currentState;
-                    this.lastAction = action;
                 }
             }
-        }, 1000);
+        }, 100); // Уменьшаем интервал обновления для более плавной работы
+    }
     }
 
     updateTrafficLights(action) {
@@ -167,14 +161,23 @@ class TrafficController {
         }
     }
 
-    setLights(direction, state) {
-        if (direction === 'ns') {
-            this.simulation.trafficLights.north.state = state;
-            this.simulation.trafficLights.south.state = state;
-        } else {
-            this.simulation.trafficLights.east.state = state;
-            this.simulation.trafficLights.west.state = state;
+    setLightsWithAnimation(direction, state) {
+        const directions = direction === 'ns' ? ['north', 'south'] : ['east', 'west'];
+        const oppositeDirections = direction === 'ns' ? ['east', 'west'] : ['north', 'south'];
+        
+        directions.forEach(dir => {
+            this.simulation.trafficLights[dir].state = state;
+        });
+        
+        // Если включаем зеленый в одном направлении, выключаем в другом
+        if (state === 'green') {
+            oppositeDirections.forEach(dir => {
+                this.simulation.trafficLights[dir].state = 'red';
+            });
         }
+        
+        // Обновляем визуальное отображение светофоров
+        this.simulation.updateTrafficLights();
     }
 
     calculateReward(trafficData) {

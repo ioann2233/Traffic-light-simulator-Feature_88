@@ -437,21 +437,21 @@ class TrafficSimulation {
             const lightMesh = this[direction + 'Light'];
             if (!lightMesh || !lightMesh.userData.lights) return;
             
-            // Обновляем состояние каждого сигнала
-            Object.entries(lightMesh.userData.lights).forEach(([state, elements]) => {
-                const isActive = this.trafficLights[direction].state === state;
-                
-                // Если сигнал активен - включаем его, иначе выключаем полностью
-                if (isActive) {
-                    elements.light.material.emissiveIntensity = 1;
-                    elements.glow.intensity = 2;
-                    elements.glowSphere.material.opacity = 0.3;
-                } else {
-                    elements.light.material.emissiveIntensity = 0;
-                    elements.glow.intensity = 0;
-                    elements.glowSphere.material.opacity = 0;
-                }
+            // Выключаем все сигналы сначала
+            Object.values(lightMesh.userData.lights).forEach(elements => {
+                elements.light.material.emissiveIntensity = 0;
+                elements.glow.intensity = 0;
+                elements.glowSphere.material.opacity = 0;
             });
+            
+            // Включаем только активный сигнал
+            const currentState = this.trafficLights[direction].state;
+            const activeElements = lightMesh.userData.lights[currentState];
+            if (activeElements) {
+                activeElements.light.material.emissiveIntensity = 1;
+                activeElements.glow.intensity = 2;
+                activeElements.glowSphere.material.opacity = 0.3;
+            }
         });
     }
 }
