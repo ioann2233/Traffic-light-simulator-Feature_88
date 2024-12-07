@@ -48,6 +48,22 @@ class TrafficController {
     async controlCycle() {
         while (true) {
             const trafficData = this.simulation.getTrafficData();
+            
+            // Проверка машин на перекрестке перед переключением
+            const isIntersectionClear = () => {
+                return !this.simulation.vehicles.some(vehicle => 
+                    vehicle.x > this.simulation.intersection.x - 30 &&
+                    vehicle.x < this.simulation.intersection.x + 30 &&
+                    vehicle.y > this.simulation.intersection.y - 30 &&
+                    vehicle.y < this.simulation.intersection.y + 30
+                );
+            };
+
+            // Ждем пока перекресток освободится
+            while (!isIntersectionClear()) {
+                await this.delay(100);
+            }
+
             const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
 
             // Update stats display

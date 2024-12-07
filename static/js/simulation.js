@@ -126,13 +126,13 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 30; // Уменьшенное безопасное расстояние
-        const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
-        const MAX_SPEED = 60; // Maximum speed in km/h
-        const ACCELERATION_RATE = 0.1;  // Уменьшить скорость ускорения
-        const DECELERATION_RATE = 0.2;  // Добавить отдельный параметр для торможения
-        const SPEED_CHANGE_RATE = 0.8; // Speed change rate
-        const MIN_SPEED_RATIO = 0.3; // Увеличенная минимальная скорость
+        const SAFE_DISTANCE = 30; // Безопасная дистанция между машинами
+        const INTERSECTION_CLEARANCE = 40; // Необходимое пространство после перекрестка
+        const MAX_SPEED = 60;  // максимальная скорость
+        const MIN_SPEED = 0;   // минимальная скорость
+        const ACCELERATION_RATE = 0.5;  // ускорение
+        const DECELERATION_RATE = 1;    // торможение
+        const SPEED_CHANGE_RATE = 0.8; // коэффициент изменения скорости
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
 
         const accelerateVehicle = (current, max, accelerationRate) => {
@@ -165,21 +165,19 @@ class TrafficSimulation {
                 Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
             );
 
-            // В методе updateVehicles() изменить проверку красного света
-            const isRedLight = !canPass && isApproachingIntersection;
-            if (isRedLight) {
-                // Вместо остановки - очень медленное движение
-                const crawlSpeed = 0.5; // Минимальная скорость движения
-                
-                if (Math.abs(vehicle.currentSpeed.dx) > crawlSpeed) {
-                    vehicle.currentSpeed.dx = crawlSpeed * Math.sign(vehicle.maxSpeed.dx);
-                }
-                if (Math.abs(vehicle.currentSpeed.dy) > crawlSpeed) {
-                    vehicle.currentSpeed.dy = crawlSpeed * Math.sign(vehicle.maxSpeed.dy);
-                }
-                
+            // Проверка красного света и остановки
+            if (isRedLight && isAtStopLine) {
+                // Полная остановка на красный свет
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
                 vehicle.waiting = true;
                 return true;
+            }
+
+            // Плавное ускорение при зеленом свете
+            if (canPass && vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0) {
+                vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
+                vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
             } else if (vehicle.currentSpeed.dx === 0 && vehicle.currentSpeed.dy === 0 && canPass) {
                 vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
                 vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
