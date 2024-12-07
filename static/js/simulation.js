@@ -56,35 +56,24 @@ class TrafficSimulation {
     updateTrafficLights() {
         const updateLight = (light, state) => {
             if (!light) return;
-            
-            // Находим все лампы светофора
-            const redLight = light.children.find(child => 
-                child instanceof THREE.Mesh && child.position.y === 14);
-            const yellowLight = light.children.find(child => 
-                child instanceof THREE.Mesh && child.position.y === 10);
-            const greenLight = light.children.find(child => 
-                child instanceof THREE.Mesh && child.position.y === 6);
-                
-            // Сбрасываем интенсивность всех ламп
-            [redLight, yellowLight, greenLight].forEach(light => {
-                if (light) light.material.emissiveIntensity = 0.1;
+            const lights = light.children.filter(child => child instanceof THREE.Mesh);
+            lights.forEach(mesh => {
+                mesh.material.emissiveIntensity = 0.1;
             });
             
-            // Включаем нужную лампу
             switch(state) {
                 case 'red':
-                    if (redLight) redLight.material.emissiveIntensity = 1;
+                    lights[0].material.emissiveIntensity = 1;
                     break;
                 case 'yellow':
-                    if (yellowLight) yellowLight.material.emissiveIntensity = 1;
+                    lights[1].material.emissiveIntensity = 1;
                     break;
                 case 'green':
-                    if (greenLight) greenLight.material.emissiveIntensity = 1;
+                    lights[2].material.emissiveIntensity = 1;
                     break;
             }
         };
         
-        // Обновляем все светофоры
         updateLight(this.northLight, this.trafficLights.north.state);
         updateLight(this.southLight, this.trafficLights.south.state);
         updateLight(this.eastLight, this.trafficLights.east.state);
@@ -92,30 +81,16 @@ class TrafficSimulation {
     }
 
     initializeScene() {
-        // Создание дороги North-South
+        // Create roads with proper orientation
         const roadNS = TrafficModels.createRoad();
-        roadNS.rotation.x = -Math.PI / 2;  // Положить горизонтально
-        roadNS.position.y = 0;  // На уровне земли
+        roadNS.rotation.x = -Math.PI / 2;
+        roadNS.rotation.y = 0;  // Remove rotation for N-S road
         this.scene3D.addObject(roadNS);
         
-        // Создание дороги East-West с правильной ориентацией
         const roadEW = TrafficModels.createRoad();
-        roadEW.rotation.x = -Math.PI / 2;  // Положить горизонтально
-        roadEW.rotation.y = Math.PI / 2;   // Повернуть на 90 градусов
-        roadEW.position.y = 0;  // На уровне земли
+        roadEW.rotation.x = -Math.PI / 2;
+        roadEW.rotation.y = Math.PI / 2;  // Rotation for E-W road
         this.scene3D.addObject(roadEW);
-        
-        // Земля
-        const groundGeometry = new THREE.PlaneGeometry(500, 500);
-        const groundMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0x1a472a,
-            roughness: 0.8
-        });
-        const ground = new THREE.Mesh(groundGeometry, groundMaterial);
-        ground.rotation.x = -Math.PI / 2;
-        ground.position.y = -0.1;  // Чуть ниже дорог
-        ground.receiveShadow = true;
-        this.scene3D.addObject(ground);
         
         // Create traffic lights
         this.northLight = TrafficModels.createTrafficLight();
@@ -197,36 +172,32 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = directions[Math.floor(Math.random() * directions.length)];
         
-        // Определение полосы движения (смещение от центра)
-        const laneOffset = Math.random() > 0.5 ? 8 : -8;  // Смещение для разных полос
-        
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
             direction: direction,
-            lane: laneOffset,
             waiting: false,
             currentSpeed: { dx: 0, dy: 0 },
             maxSpeed: { dx: 0, dy: 0 }
         };
 
-        // Установка начальной позиции с учетом полосы движения
+        // Set initial position and speed
         switch(direction) {
             case 'north':
-                vehicle.mesh.position.set(laneOffset, 2, 150);
+                vehicle.mesh.position.set(0, 2, 150);
                 vehicle.mesh.rotation.y = Math.PI;
                 vehicle.maxSpeed = { dx: 0, dy: -0.5 };
                 break;
             case 'south':
-                vehicle.mesh.position.set(-laneOffset, 2, -150);
+                vehicle.mesh.position.set(0, 2, -150);
                 vehicle.maxSpeed = { dx: 0, dy: 0.5 };
                 break;
             case 'east':
-                vehicle.mesh.position.set(-150, 2, laneOffset);
+                vehicle.mesh.position.set(-150, 2, 0);
                 vehicle.mesh.rotation.y = Math.PI / 2;
                 vehicle.maxSpeed = { dx: 0.5, dy: 0 };
                 break;
             case 'west':
-                vehicle.mesh.position.set(150, 2, -laneOffset);
+                vehicle.mesh.position.set(150, 2, 0);
                 vehicle.mesh.rotation.y = -Math.PI / 2;
                 vehicle.maxSpeed = { dx: -0.5, dy: 0 };
                 break;

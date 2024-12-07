@@ -82,14 +82,14 @@ class TrafficController {
         this.simulation = simulation;
         this.minGreenTime = 5000;
         this.maxGreenTime = 15000;
-        this.yellowTime = 3000;
-        this.transitionDelay = 500;
+        this.yellowTime = 3000; // Увеличить время желтого сигнала
+        this.transitionDelay = 500; // Задержка между сигналами
         
         this.qLearning = new QLearning();
         this.lastState = null;
         this.lastAction = null;
         
-        // Сразу запускаем цикл управления
+        this.lastStateChange = Date.now();
         this.startControl();
     }
 
@@ -143,40 +143,43 @@ class TrafficController {
                 await this.smoothTransition('ew', 'yellow');
                 await this.delay(this.yellowTime);
                 
-                // Обновляем статистику
                 this.updateStats(trafficData);
             } catch (error) {
                 console.error('Error in control cycle:', error);
-                await this.delay(1000);
+                await this.delay(1000); // Пауза перед повторной попыткой
             }
         }
     }
 
     async smoothTransition(direction, newState) {
-        // Принудительно устанавливаем противоположное направление на красный
         if (direction === 'ns') {
+            // Update traffic lights state for North-South
             this.simulation.trafficLights.north.state = newState;
             this.simulation.trafficLights.south.state = newState;
             
             if (newState === 'green') {
+                // If N-S is green, E-W must be red
                 this.simulation.trafficLights.east.state = 'red';
                 this.simulation.trafficLights.west.state = 'red';
             }
         } else {
+            // Update traffic lights state for East-West
             this.simulation.trafficLights.east.state = newState;
             this.simulation.trafficLights.west.state = newState;
             
             if (newState === 'green') {
+                // If E-W is green, N-S must be red
                 this.simulation.trafficLights.north.state = 'red';
                 this.simulation.trafficLights.south.state = 'red';
             }
         }
         
-        // Обновляем визуальное состояние светофоров
+        // Force update visual state of traffic lights
         this.simulation.updateTrafficLights();
         
-        // Добавляем небольшую задержку для плавности
+        // Add smooth transition delay
         await new Promise(resolve => setTimeout(resolve, 500));
+        this.lastStateChange = Date.now();
     }
 
     updateStats(trafficData) {

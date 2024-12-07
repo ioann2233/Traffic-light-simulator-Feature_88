@@ -1,40 +1,13 @@
 class TrafficModels {
     static createRoad() {
-        const group = new THREE.Group();
-        
-        // Основная дорога (темно-серая)
-        const roadGeometry = new THREE.PlaneGeometry(200, 40);
+        const roadGeometry = new THREE.PlaneGeometry(200, 20);
         const roadMaterial = new THREE.MeshStandardMaterial({ 
             color: 0x333333,
             roughness: 0.8
         });
         const road = new THREE.Mesh(roadGeometry, roadMaterial);
         road.receiveShadow = true;
-        group.add(road);
-        
-        // Центральная разделительная полоса (белая, приподнятая)
-        const centerLineGeometry = new THREE.PlaneGeometry(200, 2);
-        const centerLineMaterial = new THREE.MeshStandardMaterial({ 
-            color: 0xFFFFFF,
-            roughness: 0.5,
-            emissive: 0xFFFFFF,
-            emissiveIntensity: 0.5
-        });
-        const centerLine = new THREE.Mesh(centerLineGeometry, centerLineMaterial);
-        centerLine.position.y = 0.1; // Приподнять над дорогой
-        group.add(centerLine);
-        
-        // Боковые полосы разметки
-        [-15, 15].forEach(offset => {
-            const laneLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(200, 1),
-                centerLineMaterial.clone()
-            );
-            laneLine.position.set(0, 0.1, offset);
-            group.add(laneLine);
-        });
-        
-        return group;
+        return road;
     }
     
     static createVehicle() {
