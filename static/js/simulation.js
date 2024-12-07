@@ -126,10 +126,11 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 30; // Reduced minimum safe distance between vehicles
-        const INTERSECTION_CLEARANCE = 40; // Reduced space needed after intersection
-        const SPEED_CHANGE_RATE = 0.05; // Reduced rate for smoother speed changes
-        const MIN_SPEED_RATIO = 0.2; // Minimum speed as a ratio of max speed
+        const SAFE_DISTANCE = 30; // Minimum safe distance between vehicles
+        const INTERSECTION_CLEARANCE = 40; // Space needed after intersection
+        const SPEED_CHANGE_RATE = 0.05; // Rate for smooth speed changes
+        const MIN_SPEED_RATIO = 0.2; // Minimum speed ratio
+        const STOP_LINE_DISTANCE = 40; // Distance to stop line before intersection
 
         this.vehicles = this.vehicles.filter(vehicle => {
             const canPass = {
@@ -139,11 +140,29 @@ class TrafficSimulation {
                 'west': this.trafficLights.west.state === 'green'
             }[vehicle.direction];
 
-            // Add strict red light check
-            const isApproachingIntersection = (
-                Math.abs(vehicle.y - this.intersection.y) < 50 &&
-                Math.abs(vehicle.x - this.intersection.x) < 50
+            // Check if vehicle is at stop line
+            const isAtStopLine = (
+                (vehicle.direction === 'north' && Math.abs(vehicle.y - (this.intersection.y + STOP_LINE_DISTANCE)) < 5) ||
+                (vehicle.direction === 'south' && Math.abs(vehicle.y - (this.intersection.y - STOP_LINE_DISTANCE)) < 5) ||
+                (vehicle.direction === 'east' && Math.abs(vehicle.x - (this.intersection.x - STOP_LINE_DISTANCE)) < 5) ||
+                (vehicle.direction === 'west' && Math.abs(vehicle.x - (this.intersection.x + STOP_LINE_DISTANCE)) < 5)
             );
+
+            // Enhanced red light checks
+            const isApproachingIntersection = (
+                Math.abs(vehicle.y - this.intersection.y) < STOP_LINE_DISTANCE * 1.5 &&
+                Math.abs(vehicle.x - this.intersection.x) < STOP_LINE_DISTANCE * 1.5
+            );
+
+            // Strict red light check
+            const isRedLight = !canPass && (isAtStopLine || isApproachingIntersection);
+            if (isRedLight) {
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
+                vehicle.waiting = true;
+                vehicle.blocked = true;
+                return true; // Keep displaying the vehicle
+            }
 
             // Check if vehicle is at intersection with reduced zone
             const atIntersection = (
@@ -208,12 +227,14 @@ class TrafficSimulation {
             });
 
             // Intersection logic with priority for vehicles already crossing
-            // Enhanced red light stopping logic
-            if (!canPass && (atIntersection || isApproachingIntersection)) {
+            if (atIntersection && !canPass && !isCrossingIntersection) {
                 shouldStop = true;
                 if (!vehicle.blocked) {
                     vehicle.blocked = true;
                     vehicle.waiting = true;
+                    // Immediate stop at red light
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
                 }
             } else if (atIntersection && canPass) {
                 // Check if there's enough space after intersection
