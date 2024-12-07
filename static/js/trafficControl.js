@@ -152,34 +152,30 @@ class TrafficController {
     }
 
     async smoothTransition(direction, newState) {
+        // Принудительно устанавливаем противоположное направление на красный
         if (direction === 'ns') {
-            // Update traffic lights state for North-South
             this.simulation.trafficLights.north.state = newState;
             this.simulation.trafficLights.south.state = newState;
             
             if (newState === 'green') {
-                // If N-S is green, E-W must be red
                 this.simulation.trafficLights.east.state = 'red';
                 this.simulation.trafficLights.west.state = 'red';
             }
         } else {
-            // Update traffic lights state for East-West
             this.simulation.trafficLights.east.state = newState;
             this.simulation.trafficLights.west.state = newState;
             
             if (newState === 'green') {
-                // If E-W is green, N-S must be red
                 this.simulation.trafficLights.north.state = 'red';
                 this.simulation.trafficLights.south.state = 'red';
             }
         }
         
-        // Force update visual state of traffic lights
+        // Обновляем визуальное состояние светофоров
         this.simulation.updateTrafficLights();
         
-        // Add smooth transition delay
+        // Добавляем небольшую задержку для плавности
         await new Promise(resolve => setTimeout(resolve, 500));
-        this.lastStateChange = Date.now();
     }
 
     updateStats(trafficData) {

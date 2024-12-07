@@ -56,24 +56,35 @@ class TrafficSimulation {
     updateTrafficLights() {
         const updateLight = (light, state) => {
             if (!light) return;
-            const lights = light.children.filter(child => child instanceof THREE.Mesh);
-            lights.forEach(mesh => {
-                mesh.material.emissiveIntensity = 0.1;
+            
+            // Находим все лампы светофора
+            const redLight = light.children.find(child => 
+                child instanceof THREE.Mesh && child.position.y === 14);
+            const yellowLight = light.children.find(child => 
+                child instanceof THREE.Mesh && child.position.y === 10);
+            const greenLight = light.children.find(child => 
+                child instanceof THREE.Mesh && child.position.y === 6);
+                
+            // Сбрасываем интенсивность всех ламп
+            [redLight, yellowLight, greenLight].forEach(light => {
+                if (light) light.material.emissiveIntensity = 0.1;
             });
             
+            // Включаем нужную лампу
             switch(state) {
                 case 'red':
-                    lights[0].material.emissiveIntensity = 1;
+                    if (redLight) redLight.material.emissiveIntensity = 1;
                     break;
                 case 'yellow':
-                    lights[1].material.emissiveIntensity = 1;
+                    if (yellowLight) yellowLight.material.emissiveIntensity = 1;
                     break;
                 case 'green':
-                    lights[2].material.emissiveIntensity = 1;
+                    if (greenLight) greenLight.material.emissiveIntensity = 1;
                     break;
             }
         };
         
+        // Обновляем все светофоры
         updateLight(this.northLight, this.trafficLights.north.state);
         updateLight(this.southLight, this.trafficLights.south.state);
         updateLight(this.eastLight, this.trafficLights.east.state);
