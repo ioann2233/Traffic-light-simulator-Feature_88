@@ -1,16 +1,58 @@
 class TrafficSimulation {
-    constructor(canvas) {
+    constructor() {
         console.log('Initializing TrafficSimulation...');
-        if (!canvas) {
-            console.error('Canvas element not found!');
+        
+        // Initialize 3D scene
+        const container = document.getElementById('scene3d');
+        if (!container) {
+            console.error('3D scene container not found!');
             return;
         }
-        console.log(`Canvas dimensions: ${canvas.width}x${canvas.height}`);
         
-        this.canvas = canvas;
-        this.ctx = canvas.getContext('2d');
+        this.scene3D = new Scene3D(container);
+        this.initializeScene();
         this.vehicles = [];
         this.trafficLights = {
+    initializeScene() {
+        // Create roads
+        const northSouthRoad = TrafficModels.createRoad();
+        northSouthRoad.rotation.z = Math.PI / 2;
+        this.scene3D.addObject(northSouthRoad);
+        
+        const eastWestRoad = TrafficModels.createRoad();
+        this.scene3D.addObject(eastWestRoad);
+        
+        // Create traffic lights
+        const northLight = TrafficModels.createTrafficLight();
+        northLight.position.set(-30, 0, 30);
+        northLight.rotation.y = Math.PI / 2;
+        this.scene3D.addObject(northLight);
+        
+        const southLight = TrafficModels.createTrafficLight();
+        southLight.position.set(30, 0, -30);
+        southLight.rotation.y = -Math.PI / 2;
+        this.scene3D.addObject(southLight);
+        
+        const eastLight = TrafficModels.createTrafficLight();
+        eastLight.position.set(30, 0, 30);
+        this.scene3D.addObject(eastLight);
+        
+        const westLight = TrafficModels.createTrafficLight();
+        westLight.position.set(-30, 0, -30);
+        westLight.rotation.y = Math.PI;
+        this.scene3D.addObject(westLight);
+        
+        // Add camera controls
+        document.getElementById('topView').addEventListener('click', () => {
+            this.scene3D.camera.position.set(0, 200, 0);
+            this.scene3D.camera.lookAt(0, 0, 0);
+        });
+        
+        document.getElementById('sideView').addEventListener('click', () => {
+            this.scene3D.camera.position.set(200, 100, 200);
+            this.scene3D.camera.lookAt(0, 0, 0);
+        });
+    }
             north: { state: 'red', timer: 0 },
             south: { state: 'red', timer: 0 },
             east: { state: 'red', timer: 0 },
@@ -37,43 +79,51 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = directions[Math.floor(Math.random() * directions.length)];
         
-        let x, y, dx, dy;
+        let x, y, z, dx, dy, dz;
         switch(direction) {
             case 'north':
-                x = this.intersection.x - 15;
-                y = this.canvas.height;
+                x = -15;
+                z = 100;
                 dx = 0;
-                dy = -2; // Уменьшена скорость
+                dz = -2;
                 break;
             case 'south':
-                x = this.intersection.x + 15;
-                y = 0;
+                x = 15;
+                z = -100;
                 dx = 0;
-                dy = 2;  // Уменьшена скорость
+                dz = 2;
                 break;
             case 'east':
-                x = 0;
-                y = this.intersection.y - 15;
-                dx = 2;  // Уменьшена скорость
-                dy = 0;
+                x = -100;
+                z = -15;
+                dx = 2;
+                dz = 0;
                 break;
             case 'west':
-                x = this.canvas.width;
-                y = this.intersection.y + 15;
-                dx = -2; // Уменьшена скорость
-                dy = 0;
+                x = 100;
+                z = 15;
+                dx = -2;
+                dz = 0;
                 break;
         }
         console.log(`Spawning vehicle: direction=${direction}, position=(${x},${y}), speed=(${dx},${dy})`);
 
+        const vehicleMesh = TrafficModels.createVehicle();
+        vehicleMesh.position.set(x, 3, z); // Slightly above ground
+        
+        if (direction === 'east' || direction === 'west') {
+            vehicleMesh.rotation.y = Math.PI / 2;
+        }
+        
+        this.scene3D.addObject(vehicleMesh);
+        
         this.vehicles.push({
-            x, y, 
-            dx, dy,
-            maxSpeed: { dx: dx, dy: dy },
-            currentSpeed: { dx: dx, dy: dy },
+            mesh: vehicleMesh,
+            x, z,
+            dx, dz,
+            maxSpeed: { dx: dx, dz: dz },
+            currentSpeed: { dx: dx, dz: dz },
             direction,
-            width: 20,
-            height: 30,
             waiting: false,
             blocked: false
         });
@@ -395,13 +445,16 @@ class TrafficSimulation {
     animate() {
         if (!this.running) return;
 
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-        this.drawRoad();
-        this.drawTrafficLights();
         this.updateVehicles();
-        this.drawVehicles();
+        
+        // Update vehicle positions in 3D
+        this.vehicles.forEach(vehicle => {
+            vehicle.mesh.position.x += vehicle.currentSpeed.dx;
+            vehicle.mesh.position.z += vehicle.currentSpeed.dz;
+            vehicle.x = vehicle.mesh.position.x;
+            vehicle.z = vehicle.mesh.position.z;
+        });
 
-        console.log(`Active vehicles: ${this.vehicles.length}`);
         requestAnimationFrame(() => this.animate());
     }
 

@@ -1,11 +1,29 @@
-.canvas-container {
+.simulation-container {
     border: 1px solid var(--bs-border-color);
     border-radius: 4px;
     overflow: hidden;
+    position: relative;
 }
 
-#simulationCanvas {
+.scene-container {
+    width: 800px;
+    height: 600px;
     background-color: #1a1a1a;
+}
+
+.camera-controls {
+    position: absolute;
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 10px;
+    z-index: 100;
+}
+
+.camera-controls .btn {
+    padding: 5px 15px;
+    font-size: 14px;
 }
 
 .card {

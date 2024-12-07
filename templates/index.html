@@ -13,8 +13,12 @@
         
         <div class="row">
             <div class="col-md-8">
-                <div class="canvas-container">
-                    <canvas id="simulationCanvas" width="800" height="600"></canvas>
+                <div class="simulation-container">
+                    <div id="scene3d" class="scene-container"></div>
+                    <div class="camera-controls">
+                        <button id="topView" class="btn btn-secondary">Вид сверху</button>
+                        <button id="sideView" class="btn btn-secondary">Вид сбоку</button>
+                    </div>
                 </div>
             </div>
             <div class="col-md-4">
@@ -41,6 +45,10 @@
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <script src="/static/js/3d/scene.js"></script>
+    <script src="/static/js/3d/models.js"></script>
     <script src="/static/js/simulation.js"></script>
     <script src="/static/js/trafficControl.js"></script>
     <script src="/static/js/visualization.js"></script>
