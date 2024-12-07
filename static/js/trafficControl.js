@@ -41,22 +41,34 @@ class TrafficController {
             this.updateStats(trafficData);
 
             // North-South green cycle
-            this.simulation.trafficLights.ns.state = 'green';
-            this.simulation.trafficLights.ew.state = 'red';
+            this.simulation.trafficLights.north.state = 'green';
+            this.simulation.trafficLights.south.state = 'green';
+            this.simulation.trafficLights.east.state = 'red';
+            this.simulation.trafficLights.west.state = 'red';
             await this.delay(nsGreenTime);
 
-            // Yellow transition
-            this.simulation.trafficLights.ns.state = 'yellow';
+            // Yellow transition for North-South
+            this.simulation.trafficLights.north.state = 'yellow';
+            this.simulation.trafficLights.south.state = 'yellow';
             await this.delay(this.yellowTime);
+
+            // Switch North-South to red
+            this.simulation.trafficLights.north.state = 'red';
+            this.simulation.trafficLights.south.state = 'red';
 
             // East-West green cycle
-            this.simulation.trafficLights.ns.state = 'red';
-            this.simulation.trafficLights.ew.state = 'green';
+            this.simulation.trafficLights.east.state = 'green';
+            this.simulation.trafficLights.west.state = 'green';
             await this.delay(ewGreenTime);
 
-            // Yellow transition
-            this.simulation.trafficLights.ew.state = 'yellow';
+            // Yellow transition for East-West
+            this.simulation.trafficLights.east.state = 'yellow';
+            this.simulation.trafficLights.west.state = 'yellow';
             await this.delay(this.yellowTime);
+
+            // Switch East-West to red
+            this.simulation.trafficLights.east.state = 'red';
+            this.simulation.trafficLights.west.state = 'red';
         }
     }
 

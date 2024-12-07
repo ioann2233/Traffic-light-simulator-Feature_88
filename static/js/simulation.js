@@ -4,8 +4,10 @@ class TrafficSimulation {
         this.ctx = canvas.getContext('2d');
         this.vehicles = [];
         this.trafficLights = {
-            ns: { state: 'red', timer: 0 },
-            ew: { state: 'green', timer: 0 }
+            north: { state: 'red', timer: 0 },
+            south: { state: 'red', timer: 0 },
+            east: { state: 'red', timer: 0 },
+            west: { state: 'red', timer: 0 }
         };
         this.running = true;
         
@@ -87,13 +89,19 @@ class TrafficSimulation {
     }
 
     drawTrafficLights() {
-        // North-South traffic light
-        this.ctx.fillStyle = this.trafficLights.ns.state === 'green' ? '#00ff00' : '#ff0000';
-        this.ctx.fillRect(this.intersection.x - 40, this.intersection.y - 40, 10, 10);
-        
-        // East-West traffic light
-        this.ctx.fillStyle = this.trafficLights.ew.state === 'green' ? '#00ff00' : '#ff0000';
-        this.ctx.fillRect(this.intersection.x + 30, this.intersection.y - 40, 10, 10);
+        // Draw traffic lights for each direction
+        const lights = [
+            { light: this.trafficLights.north, x: this.intersection.x - 40, y: this.intersection.y - 40 },
+            { light: this.trafficLights.south, x: this.intersection.x + 30, y: this.intersection.y + 30 },
+            { light: this.trafficLights.east, x: this.intersection.x + 30, y: this.intersection.y - 40 },
+            { light: this.trafficLights.west, x: this.intersection.x - 40, y: this.intersection.y + 30 }
+        ];
+
+        lights.forEach(({ light, x, y }) => {
+            this.ctx.fillStyle = light.state === 'yellow' ? '#ffff00' : 
+                                light.state === 'green' ? '#00ff00' : '#ff0000';
+            this.ctx.fillRect(x, y, 10, 10);
+        });
     }
 
     drawVehicles() {
@@ -115,10 +123,18 @@ class TrafficSimulation {
         const MIN_SPEED_RATIO = 0.2; // Minimum speed as a ratio of max speed
 
         this.vehicles = this.vehicles.filter(vehicle => {
-            const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
-            const canPass = isVertical ? 
-                this.trafficLights.ns.state === 'green' :
-                this.trafficLights.ew.state === 'green';
+            const canPass = {
+                'north': this.trafficLights.north.state === 'green',
+                'south': this.trafficLights.south.state === 'green',
+                'east': this.trafficLights.east.state === 'green',
+                'west': this.trafficLights.west.state === 'green'
+            }[vehicle.direction];
+
+            // Add strict red light check
+            const isApproachingIntersection = (
+                Math.abs(vehicle.y - this.intersection.y) < 50 &&
+                Math.abs(vehicle.x - this.intersection.x) < 50
+            );
 
             // Check if vehicle is at intersection with reduced zone
             const atIntersection = (
@@ -183,8 +199,9 @@ class TrafficSimulation {
             });
 
             // Intersection logic with priority for vehicles already crossing
-            if (atIntersection && !canPass && !isCrossingIntersection) {
-                shouldSlow = true;
+            // Enhanced red light stopping logic
+            if (!canPass && (atIntersection || isApproachingIntersection)) {
+                shouldStop = true;
                 if (!vehicle.blocked) {
                     vehicle.blocked = true;
                     vehicle.waiting = true;
