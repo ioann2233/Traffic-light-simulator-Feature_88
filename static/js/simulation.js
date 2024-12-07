@@ -109,9 +109,10 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 40; // Minimum safe distance between vehicles
-        const INTERSECTION_CLEARANCE = 80; // Space needed after intersection
-        const SPEED_CHANGE_RATE = 0.1; // Rate of speed change for gradual adjustments
+        const SAFE_DISTANCE = 30; // Reduced minimum safe distance between vehicles
+        const INTERSECTION_CLEARANCE = 40; // Reduced space needed after intersection
+        const SPEED_CHANGE_RATE = 0.05; // Reduced rate for smoother speed changes
+        const MIN_SPEED_RATIO = 0.2; // Minimum speed as a ratio of max speed
 
         this.vehicles = this.vehicles.filter(vehicle => {
             const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
@@ -119,15 +120,24 @@ class TrafficSimulation {
                 this.trafficLights.ns.state === 'green' :
                 this.trafficLights.ew.state === 'green';
 
-            // Check if vehicle is at intersection
+            // Check if vehicle is at intersection with reduced zone
             const atIntersection = (
-                vehicle.y > this.intersection.y - 40 &&
-                vehicle.y < this.intersection.y + 40 &&
-                vehicle.x > this.intersection.x - 40 &&
-                vehicle.x < this.intersection.x + 40
+                vehicle.y > this.intersection.y - 30 &&
+                vehicle.y < this.intersection.y + 30 &&
+                vehicle.x > this.intersection.x - 30 &&
+                vehicle.x < this.intersection.x + 30
+            );
+
+            // Check if vehicle has started crossing the intersection
+            const isCrossingIntersection = (
+                vehicle.y > this.intersection.y - 15 &&
+                vehicle.y < this.intersection.y + 15 &&
+                vehicle.x > this.intersection.x - 15 &&
+                vehicle.x < this.intersection.x + 15
             );
 
             // Check for vehicles ahead and maintain safe distance
+            let shouldSlow = false;
             let shouldStop = false;
             let nearestVehicleAhead = null;
             let minDistance = Infinity;
@@ -135,35 +145,50 @@ class TrafficSimulation {
             this.vehicles.forEach(otherVehicle => {
                 if (vehicle === otherVehicle) return;
 
-                // Only check vehicles in the same direction
+                // Only check vehicles in the same direction and same lane
                 if (vehicle.direction === otherVehicle.direction) {
                     let distance;
+                    let inSameLane = false;
+                    
                     if (isVertical) {
-                        if (Math.abs(vehicle.x - otherVehicle.x) < 20) { // Same lane
-                            distance = vehicle.direction === 'north' ?
-                                vehicle.y - otherVehicle.y :
-                                otherVehicle.y - vehicle.y;
+                        inSameLane = Math.abs(vehicle.x - otherVehicle.x) < 15; // Stricter same lane check
+                        if (inSameLane) {
+                            // Only consider vehicles actually ahead
+                            if ((vehicle.direction === 'north' && otherVehicle.y < vehicle.y) ||
+                                (vehicle.direction === 'south' && otherVehicle.y > vehicle.y)) {
+                                distance = Math.abs(vehicle.y - otherVehicle.y);
+                            }
                         }
                     } else {
-                        if (Math.abs(vehicle.y - otherVehicle.y) < 20) { // Same lane
-                            distance = vehicle.direction === 'east' ?
-                                otherVehicle.x - vehicle.x :
-                                vehicle.x - otherVehicle.x;
+                        inSameLane = Math.abs(vehicle.y - otherVehicle.y) < 15; // Stricter same lane check
+                        if (inSameLane) {
+                            // Only consider vehicles actually ahead
+                            if ((vehicle.direction === 'east' && otherVehicle.x > vehicle.x) ||
+                                (vehicle.direction === 'west' && otherVehicle.x < vehicle.x)) {
+                                distance = Math.abs(vehicle.x - otherVehicle.x);
+                            }
                         }
                     }
 
-                    if (distance > 0 && distance < minDistance) {
+                    if (distance !== undefined && distance < minDistance) {
                         minDistance = distance;
                         nearestVehicleAhead = otherVehicle;
+                        if (distance < SAFE_DISTANCE * 0.5) { // Critical distance
+                            shouldStop = true;
+                        } else if (distance < SAFE_DISTANCE) {
+                            shouldSlow = true;
+                        }
                     }
                 }
             });
 
-            // Check intersection blocking
-            if (atIntersection && !canPass) {
-                vehicle.waiting = true;
-                vehicle.blocked = true;
-                shouldStop = true;
+            // Intersection logic with priority for vehicles already crossing
+            if (atIntersection && !canPass && !isCrossingIntersection) {
+                shouldSlow = true;
+                if (!vehicle.blocked) {
+                    vehicle.blocked = true;
+                    vehicle.waiting = true;
+                }
             } else if (atIntersection && canPass) {
                 // Check if there's enough space after intersection
                 const spaceAhead = this.vehicles.every(otherVehicle => {
@@ -179,25 +204,34 @@ class TrafficSimulation {
                     return aheadOfIntersection;
                 });
 
-                if (!spaceAhead) {
-                    vehicle.blocked = true;
-                    shouldStop = true;
+                if (!spaceAhead && !isCrossingIntersection) {
+                    shouldSlow = true;
                 }
             }
 
-            // Adjust speed based on conditions
-            if (shouldStop || (nearestVehicleAhead && minDistance < SAFE_DISTANCE)) {
-                // Gradually decrease speed
-                vehicle.currentSpeed.dx = Math.max(0, Math.abs(vehicle.currentSpeed.dx) - SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dx);
-                vehicle.currentSpeed.dy = Math.max(0, Math.abs(vehicle.currentSpeed.dy) - SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dy);
-                vehicle.waiting = true;
-            } else {
-                // Gradually increase speed back to max
-                vehicle.currentSpeed.dx = Math.min(Math.abs(vehicle.maxSpeed.dx), Math.abs(vehicle.currentSpeed.dx) + SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dx);
-                vehicle.currentSpeed.dy = Math.min(Math.abs(vehicle.maxSpeed.dy), Math.abs(vehicle.currentSpeed.dy) + SPEED_CHANGE_RATE) * Math.sign(vehicle.maxSpeed.dy);
-                vehicle.waiting = false;
-                vehicle.blocked = false;
-            }
+            // Smooth speed adjustment based on conditions
+            const targetSpeedRatio = shouldStop ? MIN_SPEED_RATIO :
+                                   shouldSlow ? 0.5 :
+                                   1.0;
+
+            // Gradually adjust speed towards target
+            const adjustSpeed = (current, max, target) => {
+                const targetSpeed = Math.abs(max) * target;
+                const currentAbs = Math.abs(current);
+                
+                if (currentAbs < targetSpeed) {
+                    return Math.min(currentAbs + SPEED_CHANGE_RATE, targetSpeed) * Math.sign(max);
+                } else {
+                    return Math.max(currentAbs - SPEED_CHANGE_RATE, targetSpeed) * Math.sign(max);
+                }
+            };
+
+            vehicle.currentSpeed.dx = adjustSpeed(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, targetSpeedRatio);
+            vehicle.currentSpeed.dy = adjustSpeed(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, targetSpeedRatio);
+
+            // Update vehicle state
+            vehicle.waiting = shouldStop || shouldSlow;
+            vehicle.blocked = shouldStop;
 
             // Update position
             vehicle.x += vehicle.currentSpeed.dx;
