@@ -25,6 +25,18 @@ class TrafficSimulation {
         setInterval(() => this.updateTrafficLights(), 100);
     }
     
+    async fetchIntersectionInfo() {
+        try {
+            const response = await fetch('/api/intersection-info');
+            const data = await response.json();
+            
+            document.getElementById('intersection-name').textContent = data.name;
+            document.getElementById('camera-ip-ns').textContent = data.cameras.ns.ip;
+            document.getElementById('camera-ip-ew').textContent = data.cameras.ew.ip;
+        } catch (error) {
+            console.error('Error fetching intersection info:', error);
+        }
+    }
     async fetchCameraData() {
         try {
             const response = await fetch('/api/camera-data', {
@@ -320,34 +332,26 @@ class TrafficSimulation {
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
+        
+        if (inIntersection) {
+            // Машины в перекрестке всегда продолжают движение на максимальной скорости
+            vehicle.waiting = false;
+            vehicle.currentSpeed = {...vehicle.maxSpeed};
+            return;
+        }
+        
         const beforeStopLine = 
             (vehicle.direction === 'north' && position.z > STOP_LINE) ||
             (vehicle.direction === 'south' && position.z < -STOP_LINE) ||
             (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
             (vehicle.direction === 'west' && position.x > STOP_LINE);
         
-        const lightState = this.trafficLights[vehicle.direction].state;
-        
-        if (inIntersection) {
-            // Машины в перекрестке всегда продолжают движение на полной скорости
-            vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
-            return; // Выходим, чтобы не проверять другие условия
-        }
-        
         if (beforeStopLine) {
+            const lightState = this.trafficLights[vehicle.direction].state;
             if (lightState === 'red') {
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
-            } else if (lightState === 'yellow') {
-                const shouldStop = Math.random() < 0.7; // 70% вероятность остановки на желтый
-                if (shouldStop) {
-                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
-                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
-                } else {
-                    vehicle.currentSpeed = {...vehicle.maxSpeed};
-                }
             } else {
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};
@@ -359,6 +363,8 @@ class TrafficSimulation {
         const SAFE_DISTANCE = 45;
         const SLOW_DISTANCE = 60;
         
+        let shouldStop = false;
+        
         this.vehicles.forEach(other => {
             if (other === vehicle) return;
             
@@ -367,30 +373,26 @@ class TrafficSimulation {
                 Math.pow(vehicle.mesh.position.z - other.mesh.position.z, 2)
             );
             
-            // Проверяем столкновения для всех машин, не только в одной полосе
-            if (distance < SAFE_DISTANCE) {
-                // Полная остановка при близком расстоянии
-                vehicle.waiting = true;
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
-                return;
-            }
+            // Проверяем только машины впереди
+            const isAhead = (
+                (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
+                (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
+                (vehicle.direction === 'east' && other.mesh.position.x > vehicle.mesh.position.x) ||
+                (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
+            );
             
-            // Для машин в одном направлении проверяем дистанцию следования
-            if (other.direction === vehicle.direction && other.lane === vehicle.lane) {
-                const isAhead = (
-                    (vehicle.direction === 'north' && other.mesh.position.z < vehicle.mesh.position.z) ||
-                    (vehicle.direction === 'south' && other.mesh.position.z > vehicle.mesh.position.z) ||
-                    (vehicle.direction === 'east' && other.mesh.position.x > vehicle.mesh.position.x) ||
-                    (vehicle.direction === 'west' && other.mesh.position.x < vehicle.mesh.position.x)
-                );
-                
-                if (isAhead && distance < SLOW_DISTANCE) {
-                    vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.5;
-                    vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.5;
-                }
+            if (isAhead && distance < SAFE_DISTANCE) {
+                shouldStop = true;
+            } else if (isAhead && distance < SLOW_DISTANCE && other.direction === vehicle.direction) {
+                vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.5;
+                vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.5;
             }
         });
+        
+        if (shouldStop) {
+            vehicle.currentSpeed.dx = 0;
+            vehicle.currentSpeed.dy = 0;
+        }
     }
 
     startSimulation() {

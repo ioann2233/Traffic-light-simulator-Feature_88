@@ -120,6 +120,22 @@ def update_camera_data():
             'ew': {'count': 3, 'waiting': 1, 'avgSpeed': 0.6}
         }), 200  # Возвращаем 200 вместо 400 для избежания ошибок
 
+@app.route('/api/intersection-info', methods=['GET'])
+def get_intersection_info():
+    return jsonify({
+        'name': 'Перекресток №1',
+        'cameras': {
+            'ns': {
+                'ip': '192.168.1.101',
+                'status': 'active'
+            },
+            'ew': {
+                'ip': '192.168.1.102',
+                'status': 'active'
+            }
+        }
+    })
+
 @app.route('/api/simulate-camera', methods=['GET'])
 def simulate_camera():
     camera_id = request.args.get('camera_id', 'cam1')
