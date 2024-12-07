@@ -92,15 +92,14 @@ class TrafficSimulation {
     }
 
     initializeScene() {
-        // Create roads with proper orientation
+        // Создание дорог с правильной ориентацией
         const roadNS = TrafficModels.createRoad();
-        roadNS.rotation.x = -Math.PI / 2;
-        roadNS.rotation.y = 0;  // Remove rotation for N-S road
+        roadNS.rotation.x = -Math.PI / 2;  // Горизонтально
         this.scene3D.addObject(roadNS);
         
         const roadEW = TrafficModels.createRoad();
-        roadEW.rotation.x = -Math.PI / 2;
-        roadEW.rotation.y = Math.PI / 2;  // Rotation for E-W road
+        roadEW.rotation.x = -Math.PI / 2;  // Горизонтально
+        roadEW.rotation.y = Math.PI / 2;   // Поворот для E-W дороги
         this.scene3D.addObject(roadEW);
         
         // Create traffic lights
@@ -183,32 +182,36 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = directions[Math.floor(Math.random() * directions.length)];
         
+        // Определение полосы движения (смещение от центра)
+        const laneOffset = Math.random() > 0.5 ? 8 : -8;  // Смещение для разных полос
+        
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
             direction: direction,
+            lane: laneOffset,
             waiting: false,
             currentSpeed: { dx: 0, dy: 0 },
             maxSpeed: { dx: 0, dy: 0 }
         };
 
-        // Set initial position and speed
+        // Установка начальной позиции с учетом полосы движения
         switch(direction) {
             case 'north':
-                vehicle.mesh.position.set(0, 2, 150);
+                vehicle.mesh.position.set(laneOffset, 2, 150);
                 vehicle.mesh.rotation.y = Math.PI;
                 vehicle.maxSpeed = { dx: 0, dy: -0.5 };
                 break;
             case 'south':
-                vehicle.mesh.position.set(0, 2, -150);
+                vehicle.mesh.position.set(-laneOffset, 2, -150);
                 vehicle.maxSpeed = { dx: 0, dy: 0.5 };
                 break;
             case 'east':
-                vehicle.mesh.position.set(-150, 2, 0);
+                vehicle.mesh.position.set(-150, 2, laneOffset);
                 vehicle.mesh.rotation.y = Math.PI / 2;
                 vehicle.maxSpeed = { dx: 0.5, dy: 0 };
                 break;
             case 'west':
-                vehicle.mesh.position.set(150, 2, 0);
+                vehicle.mesh.position.set(150, 2, -laneOffset);
                 vehicle.mesh.rotation.y = -Math.PI / 2;
                 vehicle.maxSpeed = { dx: -0.5, dy: 0 };
                 break;

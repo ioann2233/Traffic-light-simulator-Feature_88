@@ -82,14 +82,14 @@ class TrafficController {
         this.simulation = simulation;
         this.minGreenTime = 5000;
         this.maxGreenTime = 15000;
-        this.yellowTime = 3000; // Увеличить время желтого сигнала
-        this.transitionDelay = 500; // Задержка между сигналами
+        this.yellowTime = 3000;
+        this.transitionDelay = 500;
         
         this.qLearning = new QLearning();
         this.lastState = null;
         this.lastAction = null;
         
-        this.lastStateChange = Date.now();
+        // Сразу запускаем цикл управления
         this.startControl();
     }
 
@@ -143,10 +143,11 @@ class TrafficController {
                 await this.smoothTransition('ew', 'yellow');
                 await this.delay(this.yellowTime);
                 
+                // Обновляем статистику
                 this.updateStats(trafficData);
             } catch (error) {
                 console.error('Error in control cycle:', error);
-                await this.delay(1000); // Пауза перед повторной попыткой
+                await this.delay(1000);
             }
         }
     }
