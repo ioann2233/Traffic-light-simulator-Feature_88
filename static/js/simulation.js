@@ -126,11 +126,11 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 30; // Безопасная дистанция между машинами
+        const SAFE_DISTANCE = 40; // Увеличить безопасное расстояние между машинами
         const INTERSECTION_CLEARANCE = 40; // Необходимое пространство после перекрестка
         const MAX_SPEED = 60;  // максимальная скорость
         const MIN_SPEED = 0;   // минимальная скорость
-        const ACCELERATION_RATE = 0.5;  // ускорение
+        const ACCELERATION_RATE = 0.2;  // Уменьшить для более плавного ускорения
         const DECELERATION_RATE = 1;    // торможение
         const SPEED_CHANGE_RATE = 0.8; // коэффициент изменения скорости
         const DECISION_ZONE = 100; // Зона принятия решения при желтом сигнале
@@ -171,11 +171,10 @@ class TrafficSimulation {
 
             // Проверка красного света и остановки
             if (isRedLight && isAtStopLine) {
-                // Полная остановка на красный свет
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
                 vehicle.waiting = true;
-                return true;
+                return true; // Оставляем машину в симуляции
             }
 
             // Плавное ускорение при зеленом свете
@@ -240,25 +239,11 @@ class TrafficSimulation {
                     if (distance !== undefined && distance < minDistance) {
                         minDistance = distance;
                         nearestVehicleAhead = otherVehicle;
-                        if (distance < SAFE_DISTANCE * 0.7) { // More early braking
-                            shouldStop = true;
-                            vehicle.currentSpeed.dx = 0;
-                            vehicle.currentSpeed.dy = 0;
-                        } else if (distance < SAFE_DISTANCE) {
-                            shouldSlow = true;
-                            // Минимальная скорость движения в заторе
-                            const minTrafficSpeed = Math.max(
-                                Math.abs(vehicle.maxSpeed.dx) * MIN_SPEED_RATIO,
-                                Math.abs(vehicle.maxSpeed.dy) * MIN_SPEED_RATIO
-                            );
-                            
-                            // Поддерживать движение на минимальной скорости
-                            if (Math.abs(vehicle.currentSpeed.dx) < minTrafficSpeed) {
-                                vehicle.currentSpeed.dx = minTrafficSpeed * Math.sign(vehicle.maxSpeed.dx);
-                            }
-                            if (Math.abs(vehicle.currentSpeed.dy) < minTrafficSpeed) {
-                                vehicle.currentSpeed.dy = minTrafficSpeed * Math.sign(vehicle.maxSpeed.dy);
-                            }
+                        if (distance < SAFE_DISTANCE) {
+                            const slowdownFactor = distance / SAFE_DISTANCE;
+                            vehicle.currentSpeed.dx = otherVehicle.currentSpeed.dx * slowdownFactor;
+                            vehicle.currentSpeed.dy = otherVehicle.currentSpeed.dy * slowdownFactor;
+                            vehicle.waiting = true;
                         }
                     }
                 }

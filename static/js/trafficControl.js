@@ -11,21 +11,26 @@ class TrafficController {
     calculateGreenTime(trafficData) {
         const { ns, ew } = trafficData;
         
-        // Проверяем количество ждущих машин
-        if (ns.waiting > 10 || ew.waiting > 10) {
-            return {
-                nsGreenTime: ns.waiting > ew.waiting ? 15000 : 5000,
-                ewGreenTime: ew.waiting > ns.waiting ? 15000 : 5000
-            };
-        }
+        // Вычисление приоритета на основе количества машин и их скорости
+        const nsScore = (ns.waiting * 3) + (10 / (ns.avgSpeed + 0.1));
+        const ewScore = (ew.waiting * 3) + (10 / (ew.avgSpeed + 0.1));
         
-        // Стандартная логика
-        const nsScore = (ns.waiting * 2) + (1 / (ns.avgSpeed + 0.1));
-        const ewScore = (ew.waiting * 2) + (1 / (ew.avgSpeed + 0.1));
+        // Динамическое время зеленого сигнала
+        const baseTime = 5000;
+        const maxTime = 15000;
+        
+        // Если есть затор (больше 10 машин), увеличиваем время
+        const nsTime = ns.waiting > 10 ? 
+            Math.min(maxTime, baseTime + (ns.waiting * 500)) : 
+            baseTime + (nsScore * 500);
+            
+        const ewTime = ew.waiting > 10 ? 
+            Math.min(maxTime, baseTime + (ew.waiting * 500)) : 
+            baseTime + (ewScore * 500);
         
         return {
-            nsGreenTime: Math.max(5000, Math.min(15000, 5000 + (10000 * (nsScore / (nsScore + ewScore))))),
-            ewGreenTime: Math.max(5000, Math.min(15000, 5000 + (10000 * (ewScore / (nsScore + ewScore)))))
+            nsGreenTime: nsTime,
+            ewGreenTime: ewTime
         };
     }
 
@@ -34,30 +39,29 @@ class TrafficController {
             const trafficData = this.simulation.getTrafficData();
             const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
             
-            // Переключаем светофоры без ожидания очистки перекрестка
             // North-South зеленый
             this.simulation.trafficLights.north.state = 'green';
             this.simulation.trafficLights.south.state = 'green';
             this.simulation.trafficLights.east.state = 'red';
             this.simulation.trafficLights.west.state = 'red';
             await this.delay(nsGreenTime);
-
+            
             // Желтый для North-South
             this.simulation.trafficLights.north.state = 'yellow';
             this.simulation.trafficLights.south.state = 'yellow';
-            await this.delay(3000); // Увеличиваем время желтого
-
+            await this.delay(2000);
+            
             // East-West зеленый
             this.simulation.trafficLights.north.state = 'red';
             this.simulation.trafficLights.south.state = 'red';
             this.simulation.trafficLights.east.state = 'green';
             this.simulation.trafficLights.west.state = 'green';
             await this.delay(ewGreenTime);
-
+            
             // Желтый для East-West
             this.simulation.trafficLights.east.state = 'yellow';
             this.simulation.trafficLights.west.state = 'yellow';
-            await this.delay(3000);
+            await this.delay(2000);
             
             this.updateStats(trafficData);
         }
