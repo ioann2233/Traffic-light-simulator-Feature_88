@@ -126,11 +126,13 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 40; // Увеличить безопасное расстояние между машинами
+        const SAFE_DISTANCE = 60; // Увеличить безопасное расстояние между машинами
         const MAX_SPEED = 60;  // максимальная скорость
         const MIN_SPEED = 0;   // минимальная скорость
         const ACCELERATION_RATE = 0.2;  // Уменьшить для более плавного ускорения
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
+        const DECISION_ZONE = 80; // Зона принятия решения на желтый
+        const YELLOW_SPEED_THRESHOLD = 1.5; // Минимальная скорость для проезда на желтый
 
         const INTERSECTION_ZONE = {
             x1: this.intersection.x - 30,
@@ -226,23 +228,33 @@ class TrafficSimulation {
 
             // Логика для желтого сигнала
             if (isYellowLight) {
-                const vehicleDistance = distanceToIntersection(vehicle);
+                const distToIntersection = distanceToIntersection(vehicle);
                 
-                // Если машина уже в перекрестке - продолжает движение
-                if (atIntersection(vehicle)) {
+                if (inIntersectionZone(vehicle)) {
+                    // Если в перекрестке - проезжаем на максимальной скорости
+                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx;
+                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy;
                     return true;
                 }
                 
-                // Если машина близко к перекрестку - останавливается
-                if (vehicleDistance < STOP_LINE_DISTANCE) {
-                    vehicle.currentSpeed.dx = 0;
-                    vehicle.currentSpeed.dy = 0;
-                    vehicle.waiting = true;
-                    return true;
+                if (distToIntersection < DECISION_ZONE) {
+                    const currentSpeed = Math.sqrt(
+                        vehicle.currentSpeed.dx ** 2 + 
+                        vehicle.currentSpeed.dy ** 2
+                    );
+                    
+                    if (currentSpeed > YELLOW_SPEED_THRESHOLD) {
+                        // Продолжаем движение если едем достаточно быстро
+                        return true;
+                    } else {
+                        // Плавно тормозим
+                        vehicle.currentSpeed.dx *= 0.95;
+                        vehicle.currentSpeed.dy *= 0.95;
+                        if (Math.abs(vehicle.currentSpeed.dx) < 0.1) vehicle.currentSpeed.dx = 0;
+                        if (Math.abs(vehicle.currentSpeed.dy) < 0.1) vehicle.currentSpeed.dy = 0;
+                        return true;
+                    }
                 }
-                
-                // Машины далеко от перекрестка - продолжают движение
-                return true;
             }
 
             // Добавить обработку красного сигнала

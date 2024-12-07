@@ -82,7 +82,8 @@ class TrafficController {
         this.simulation = simulation;
         this.minGreenTime = 5000;
         this.maxGreenTime = 15000;
-        this.yellowTime = 2000;
+        this.yellowTime = 3000; // Увеличить время желтого сигнала
+        this.transitionDelay = 500; // Задержка между сигналами
         
         this.qLearning = new QLearning();
         this.lastState = null;
@@ -123,29 +124,19 @@ class TrafficController {
                 const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
                 
                 // North-South зеленый
-                this.simulation.trafficLights.north.state = 'green';
-                this.simulation.trafficLights.south.state = 'green';
-                this.simulation.trafficLights.east.state = 'red';
-                this.simulation.trafficLights.west.state = 'red';
-                this.lastStateChange = Date.now();
+                await this.smoothTransition('ns', 'green');
                 await this.delay(nsGreenTime);
                 
                 // Желтый для North-South
-                this.simulation.trafficLights.north.state = 'yellow';
-                this.simulation.trafficLights.south.state = 'yellow';
+                await this.smoothTransition('ns', 'yellow');
                 await this.delay(this.yellowTime);
                 
                 // East-West зеленый
-                this.simulation.trafficLights.north.state = 'red';
-                this.simulation.trafficLights.south.state = 'red';
-                this.simulation.trafficLights.east.state = 'green';
-                this.simulation.trafficLights.west.state = 'green';
-                this.lastStateChange = Date.now();
+                await this.smoothTransition('ew', 'green');
                 await this.delay(ewGreenTime);
                 
                 // Желтый для East-West
-                this.simulation.trafficLights.east.state = 'yellow';
-                this.simulation.trafficLights.west.state = 'yellow';
+                await this.smoothTransition('ew', 'yellow');
                 await this.delay(this.yellowTime);
                 
                 this.updateStats(trafficData);
@@ -154,6 +145,26 @@ class TrafficController {
                 await this.delay(1000); // Пауза перед повторной попыткой
             }
         }
+    }
+
+    async smoothTransition(direction, newState) {
+        await this.delay(this.transitionDelay);
+        if (direction === 'ns') {
+            this.simulation.trafficLights.north.state = newState;
+            this.simulation.trafficLights.south.state = newState;
+            if (newState === 'green') {
+                this.simulation.trafficLights.east.state = 'red';
+                this.simulation.trafficLights.west.state = 'red';
+            }
+        } else {
+            this.simulation.trafficLights.east.state = newState;
+            this.simulation.trafficLights.west.state = newState;
+            if (newState === 'green') {
+                this.simulation.trafficLights.north.state = 'red';
+                this.simulation.trafficLights.south.state = 'red';
+            }
+        }
+        this.lastStateChange = Date.now();
     }
 
     updateStats(trafficData) {
