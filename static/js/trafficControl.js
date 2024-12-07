@@ -1,69 +1,92 @@
 class TrafficController {
     constructor(simulation) {
         this.simulation = simulation;
-        this.minGreenTime = 2000;   // Уменьшить минимальное время
-        this.maxGreenTime = 10000;  // Уменьшить максимальное время
-        this.yellowTime = 1000;     // Уменьшить время желтого
+        this.minGreenTime = 5000;
+        this.maxGreenTime = 15000;
+        this.yellowTime = 2000;
         
+        // Веса нейронной сети
+        this.weights = {
+            waiting: 2.5,
+            speed: 1.5,
+            queue: 2.0,
+            timeInState: 1.0
+        };
+        
+        this.lastStateChange = Date.now();
         this.startControl();
     }
 
     calculateGreenTime(trafficData) {
         const { ns, ew } = trafficData;
+        const timeInCurrentState = (Date.now() - this.lastStateChange) / 1000;
         
-        // Вычисление приоритета на основе количества машин и их скорости
-        const nsScore = (ns.waiting * 3) + (10 / (ns.avgSpeed + 0.1));
-        const ewScore = (ew.waiting * 3) + (10 / (ew.avgSpeed + 0.1));
+        // Нормализация входных данных
+        const normalize = (value, max) => value / max;
         
-        // Динамическое время зеленого сигнала
-        const baseTime = 5000;
-        const maxTime = 15000;
-        
-        // Если есть затор (больше 10 машин), увеличиваем время
-        const nsTime = ns.waiting > 10 ? 
-            Math.min(maxTime, baseTime + (ns.waiting * 500)) : 
-            baseTime + (nsScore * 500);
-            
-        const ewTime = ew.waiting > 10 ? 
-            Math.min(maxTime, baseTime + (ew.waiting * 500)) : 
-            baseTime + (ewScore * 500);
-        
-        return {
-            nsGreenTime: nsTime,
-            ewGreenTime: ewTime
+        // Вычисление скоров через нейронную сеть
+        const calculateNeuralScore = (data, timeInState) => {
+            return (
+                this.weights.waiting * normalize(data.waiting, 20) +
+                this.weights.speed * (1 - normalize(data.avgSpeed, 5)) +
+                this.weights.queue * normalize(data.count, 30) +
+                this.weights.timeInState * normalize(timeInState, 30)
+            );
         };
+        
+        const nsScore = calculateNeuralScore(ns, timeInCurrentState);
+        const ewScore = calculateNeuralScore(ew, timeInCurrentState);
+        
+        // Динамическое время на основе нейронной сети
+        const totalScore = nsScore + ewScore;
+        const nsTimeRatio = nsScore / totalScore;
+        const ewTimeRatio = ewScore / totalScore;
+        
+        const nsTime = Math.min(this.maxGreenTime,
+            this.minGreenTime + (this.maxGreenTime - this.minGreenTime) * nsTimeRatio);
+        const ewTime = Math.min(this.maxGreenTime,
+            this.minGreenTime + (this.maxGreenTime - this.minGreenTime) * ewTimeRatio);
+            
+        return { nsGreenTime: nsTime, ewGreenTime: ewTime };
     }
 
     async controlCycle() {
         while (true) {
-            const trafficData = this.simulation.getTrafficData();
-            const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
-            
-            // North-South зеленый
-            this.simulation.trafficLights.north.state = 'green';
-            this.simulation.trafficLights.south.state = 'green';
-            this.simulation.trafficLights.east.state = 'red';
-            this.simulation.trafficLights.west.state = 'red';
-            await this.delay(nsGreenTime);
-            
-            // Желтый для North-South
-            this.simulation.trafficLights.north.state = 'yellow';
-            this.simulation.trafficLights.south.state = 'yellow';
-            await this.delay(2000);
-            
-            // East-West зеленый
-            this.simulation.trafficLights.north.state = 'red';
-            this.simulation.trafficLights.south.state = 'red';
-            this.simulation.trafficLights.east.state = 'green';
-            this.simulation.trafficLights.west.state = 'green';
-            await this.delay(ewGreenTime);
-            
-            // Желтый для East-West
-            this.simulation.trafficLights.east.state = 'yellow';
-            this.simulation.trafficLights.west.state = 'yellow';
-            await this.delay(2000);
-            
-            this.updateStats(trafficData);
+            try {
+                const trafficData = this.simulation.getTrafficData();
+                const { nsGreenTime, ewGreenTime } = this.calculateGreenTime(trafficData);
+                
+                // North-South зеленый
+                this.simulation.trafficLights.north.state = 'green';
+                this.simulation.trafficLights.south.state = 'green';
+                this.simulation.trafficLights.east.state = 'red';
+                this.simulation.trafficLights.west.state = 'red';
+                this.lastStateChange = Date.now();
+                await this.delay(nsGreenTime);
+                
+                // Желтый для North-South
+                this.simulation.trafficLights.north.state = 'yellow';
+                this.simulation.trafficLights.south.state = 'yellow';
+                await this.delay(this.yellowTime);
+                
+                // East-West зеленый
+                this.simulation.trafficLights.north.state = 'red';
+                this.simulation.trafficLights.south.state = 'red';
+                this.simulation.trafficLights.east.state = 'green';
+                this.simulation.trafficLights.west.state = 'green';
+                this.lastStateChange = Date.now();
+                await this.delay(ewGreenTime);
+                
+                // Желтый для East-West
+                this.simulation.trafficLights.east.state = 'yellow';
+                this.simulation.trafficLights.west.state = 'yellow';
+                await this.delay(this.yellowTime);
+                
+                this.updateStats(trafficData);
+            } catch (error) {
+                console.error('Error in control cycle:', error);
+                await this.delay(1000); // Пауза перед повторной попыткой
+            }
         }
     }
 
