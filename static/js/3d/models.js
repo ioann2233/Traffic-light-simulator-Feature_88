@@ -2,156 +2,81 @@ class TrafficModels {
     static createRoad() {
         const group = new THREE.Group();
         
-        // Создаем две пересекающиеся дороги
-        const roads = [
-            { width: 40, length: 200, rotation: 0 },      // Горизонтальная дорога
-            { width: 40, length: 200, rotation: Math.PI/2 }  // Вертикальная дорога
-        ];
+        // Основная дорога с 4 полосами (теперь горизонтально)
+        const roadWidth = 40;
+        const roadLength = 200;
         
-        roads.forEach(road => {
-            // Асфальт
-            const roadGeometry = new THREE.PlaneGeometry(road.length, road.width);
-            const roadMaterial = new THREE.MeshStandardMaterial({ 
-                color: 0x333333,
-                roughness: 0.8
-            });
-            const roadMesh = new THREE.Mesh(roadGeometry, roadMaterial);
-            roadMesh.rotation.x = -Math.PI / 2;
-            roadMesh.rotation.y = road.rotation;
-            roadMesh.receiveShadow = true;
-            group.add(roadMesh);
-            
-            // Разметка
-            const lineMaterial = new THREE.MeshStandardMaterial({
-                color: 0xFFFFFF,
-                roughness: 0.4
-            });
-            
-            // Центральная разделительная полоса
+        // Асфальт
+        const roadGeometry = new THREE.PlaneGeometry(roadLength, roadWidth);
+        const roadMaterial = new THREE.MeshStandardMaterial({ 
+            color: 0x333333,
+            roughness: 0.8
+        });
+        const road = new THREE.Mesh(roadGeometry, roadMaterial);
+        road.rotation.x = -Math.PI / 2; // Поворот для горизонтального положения
+        road.receiveShadow = true;
+        group.add(road);
+        
+        // Разметка
+        const lineMaterial = new THREE.MeshStandardMaterial({
+            color: 0xFFFFFF,
+            roughness: 0.4
+        });
+        
+        // Центральная двойная линия
+        [-1, 1].forEach(offset => {
             const centerLine = new THREE.Mesh(
-                new THREE.PlaneGeometry(road.length, 0.5),
+                new THREE.PlaneGeometry(roadLength, 0.5),
                 lineMaterial
             );
             centerLine.rotation.x = -Math.PI / 2;
-            centerLine.rotation.y = road.rotation;
             centerLine.position.y = 0.1;
+            centerLine.position.z = offset;
             group.add(centerLine);
-            
-            // Боковые линии
-            [-road.width/2, road.width/2].forEach(offset => {
-                const sideLine = new THREE.Mesh(
-                    new THREE.PlaneGeometry(road.length, 0.5),
+        });
+        
+        // Боковые линии
+        [-roadWidth/2, roadWidth/2].forEach(z => {
+            const sideLine = new THREE.Mesh(
+                new THREE.PlaneGeometry(roadLength, 0.5),
+                lineMaterial
+            );
+            sideLine.rotation.x = -Math.PI / 2;
+            sideLine.position.y = 0.1;
+            sideLine.position.z = z;
+            group.add(sideLine);
+        });
+        
+        // Разметка полос движения
+        [-roadWidth/4, roadWidth/4].forEach(z => {
+            const laneMarkings = new THREE.Group();
+            for(let x = -90; x < 90; x += 20) {
+                const dash = new THREE.Mesh(
+                    new THREE.PlaneGeometry(10, 0.5),
                     lineMaterial
                 );
-                sideLine.rotation.x = -Math.PI / 2;
-                sideLine.rotation.y = road.rotation;
-                sideLine.position.y = 0.1;
-                if (road.rotation === 0) {
-                    sideLine.position.z = offset;
-                } else {
-                    sideLine.position.x = offset;
-                }
-                group.add(sideLine);
-            });
+                dash.position.set(x, 0.1, z);
+                dash.rotation.x = -Math.PI / 2;
+                laneMarkings.add(dash);
+            }
+            group.add(laneMarkings);
         });
         
         return group;
     }
 
     static createVehicle() {
-        const car = new THREE.Group();
-        
-        // Основной корпус (более реалистичной формы)
-        const bodyGeometry = new THREE.BoxGeometry(4, 2, 8);
-        const bodyMaterial = new THREE.MeshStandardMaterial({
+        const vehicleGeometry = new THREE.BoxGeometry(8, 4, 12);
+        const vehicleMaterial = new THREE.MeshStandardMaterial({ 
             color: Math.random() * 0xffffff,
-            metalness: 0.7,
-            roughness: 0.3
+            roughness: 0.5,
+            metalness: 0.5
         });
-        const body = new THREE.Mesh(bodyGeometry, bodyMaterial);
-        car.add(body);
-        
-        // Крыша
-        const roofGeometry = new THREE.BoxGeometry(3.5, 1.5, 4);
-        const roofMaterial = new THREE.MeshStandardMaterial({
-            color: bodyMaterial.color,
-            metalness: 0.7,
-            roughness: 0.3
-        });
-        const roof = new THREE.Mesh(roofGeometry, roofMaterial);
-        roof.position.y = 1.75;
-        roof.position.z = -1;
-        car.add(roof);
-        
-        // Колёса
-        const wheelGeometry = new THREE.CylinderGeometry(0.7, 0.7, 0.5, 16);
-        const wheelMaterial = new THREE.MeshStandardMaterial({
-            color: 0x333333,
-            metalness: 0.5,
-            roughness: 0.7
-        });
-        
-        const wheelPositions = [
-            [-2, -1, -2.5],
-            [2, -1, -2.5],
-            [-2, -1, 2.5],
-            [2, -1, 2.5]
-        ];
-        
-        wheelPositions.forEach(position => {
-            const wheel = new THREE.Mesh(wheelGeometry, wheelMaterial);
-            wheel.rotation.z = Math.PI / 2;
-            wheel.position.set(...position);
-            car.add(wheel);
-        });
-        
-        // Фары
-        const headlightGeometry = new THREE.SphereGeometry(0.3, 16, 16);
-        const headlightMaterial = new THREE.MeshStandardMaterial({
-            color: 0xffffff,
-            emissive: 0xffffff,
-            emissiveIntensity: 0.5
-        });
-        
-        const headlightPositions = [
-            [-1.5, 0, -4],
-            [1.5, 0, -4]
-        ];
-        
-        headlightPositions.forEach(position => {
-            const headlight = new THREE.Mesh(headlightGeometry, headlightMaterial);
-            headlight.position.set(...position);
-            car.add(headlight);
-        });
-        
-        // Поворотники
-        const turnSignalGeometry = new THREE.BoxGeometry(0.3, 0.3, 0.3);
-        const leftSignal = new THREE.Mesh(
-            turnSignalGeometry,
-            new THREE.MeshStandardMaterial({
-                color: 0xffaa00,
-                emissive: 0xffaa00,
-                emissiveIntensity: 0
-            })
-        );
-        const rightSignal = leftSignal.clone();
-        
-        leftSignal.position.set(-2, 0, -4);
-        rightSignal.position.set(2, 0, -4);
-        
-        car.add(leftSignal);
-        car.add(rightSignal);
-        
-        // Сохраняем ссылки на поворотники
-        car.userData.turnSignals = {
-            left: leftSignal,
-            right: rightSignal
-        };
-        
-        car.castShadow = true;
-        car.receiveShadow = true;
-        
-        return car;
+        const vehicle = new THREE.Mesh(vehicleGeometry, vehicleMaterial);
+        vehicle.position.y = 2;
+        vehicle.castShadow = true;
+        vehicle.receiveShadow = true;
+        return vehicle;
     }
     
     static createCameraView() {
