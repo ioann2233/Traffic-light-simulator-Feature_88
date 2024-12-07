@@ -126,13 +126,42 @@ class TrafficSimulation {
     }
 
     updateVehicles() {
-        const SAFE_DISTANCE = 60; // Увеличить безопасное расстояние между машинами
+        const SAFE_DISTANCE = 80; // Увеличиваем безопасную дистанцию
+        const BRAKE_DISTANCE = 100; // Дистанция начала торможения
+        const MINIMUM_GAP = 40; // Минимальный промежуток между машинами
         const MAX_SPEED = 60;  // максимальная скорость
         const MIN_SPEED = 0;   // минимальная скорость
         const ACCELERATION_RATE = 0.2;  // Уменьшить для более плавного ускорения
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
         const DECISION_ZONE = 80; // Зона принятия решения на желтый
         const YELLOW_SPEED_THRESHOLD = 1.5; // Минимальная скорость для проезда на желтый
+
+        // Функция проверки дистанции до ближайшей машины впереди
+        const getDistanceToNextVehicle = (vehicle, vehicles) => {
+            let minDistance = Infinity;
+            vehicles.forEach(other => {
+                if (other === vehicle || other.direction !== vehicle.direction) return;
+                
+                let distance;
+                if (vehicle.direction === 'north' || vehicle.direction === 'south') {
+                    if (vehicle.direction === 'north' && other.y < vehicle.y) {
+                        distance = vehicle.y - other.y;
+                    } else if (vehicle.direction === 'south' && other.y > vehicle.y) {
+                        distance = other.y - vehicle.y;
+                    }
+                } else {
+                    if (vehicle.direction === 'east' && other.x > vehicle.x) {
+                        distance = other.x - vehicle.x;
+                    } else if (vehicle.direction === 'west' && other.x < vehicle.x) {
+                        distance = vehicle.x - other.x;
+                    }
+                }
+                if (distance > 0 && distance < minDistance) {
+                    minDistance = distance;
+                }
+            });
+            return minDistance;
+        };
 
         const INTERSECTION_ZONE = {
             x1: this.intersection.x - 30,
@@ -195,6 +224,29 @@ class TrafficSimulation {
         };
 
         this.vehicles = this.vehicles.filter(vehicle => {
+            const distanceToNext = getDistanceToNextVehicle(vehicle, this.vehicles);
+            
+            // Если дистанция меньше безопасной - начинаем тормозить
+            if (distanceToNext < BRAKE_DISTANCE) {
+                const brakingFactor = Math.max(0, (distanceToNext - MINIMUM_GAP) / (BRAKE_DISTANCE - MINIMUM_GAP));
+                vehicle.currentSpeed.dx *= brakingFactor;
+                vehicle.currentSpeed.dy *= brakingFactor;
+                
+                // Если слишком близко - полностью останавливаемся
+                if (distanceToNext < MINIMUM_GAP) {
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
+                }
+            }
+            
+            // Плавное ускорение при достаточной дистанции
+            if (distanceToNext > SAFE_DISTANCE && vehicle.waiting) {
+                vehicle.waiting = false;
+                vehicle.currentSpeed.dx = accelerateVehicle(vehicle.currentSpeed.dx, vehicle.maxSpeed.dx, ACCELERATION_RATE);
+                vehicle.currentSpeed.dy = accelerateVehicle(vehicle.currentSpeed.dy, vehicle.maxSpeed.dy, ACCELERATION_RATE);
+            }
+
             const isVertical = vehicle.direction === 'north' || vehicle.direction === 'south';
             const canPass = {
                 'north': this.trafficLights.north.state === 'green',
