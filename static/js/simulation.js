@@ -137,6 +137,13 @@ class TrafficSimulation {
         const CRITICAL_ZONE = 30;  // Зона обязательного проезда при желтом сигнале
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
 
+        const atIntersection = vehicle => (
+            vehicle.y > this.intersection.y - 30 &&
+            vehicle.y < this.intersection.y + 30 &&
+            vehicle.x > this.intersection.x - 30 &&
+            vehicle.x < this.intersection.x + 30
+        );
+
         const isVertical = vehicle => vehicle.direction === 'north' || vehicle.direction === 'south';
         const distanceToIntersection = vehicle => isVertical(vehicle) ? 
             Math.abs(vehicle.y - this.intersection.y) :
@@ -183,17 +190,22 @@ class TrafficSimulation {
 
             // Логика для желтого сигнала
             if (isYellowLight) {
-                // Если машина приближается к перекрестку
-                if (distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
-                    // Машины, которые уже на перекрестке, продолжают движение
-                    if (!atIntersection) {
-                        vehicle.currentSpeed.dx = 0;
-                        vehicle.currentSpeed.dy = 0;
-                        vehicle.waiting = true;
-                        return true;
-                    }
+                const vehicleDistance = distanceToIntersection(vehicle);
+                
+                // Если машина уже в перекрестке - продолжает движение
+                if (atIntersection(vehicle)) {
+                    return true;
                 }
-                // Машины вдали от перекрестка продолжают движение с текущей скоростью
+                
+                // Если машина близко к перекрестку - останавливается
+                if (vehicleDistance < STOP_LINE_DISTANCE) {
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                    vehicle.waiting = true;
+                    return true;
+                }
+                
+                // Машины далеко от перекрестка - продолжают движение
                 return true;
             }
 
@@ -348,14 +360,19 @@ class TrafficSimulation {
             vehicle.x += vehicle.currentSpeed.dx;
             vehicle.y += vehicle.currentSpeed.dy;
 
-            // Remove vehicles that are off screen (wider boundaries)
-            // Убрать удаление машин на желтый сигнал
-            return !(
-                vehicle.x < -100 ||
-                vehicle.x > this.canvas.width + 100 ||
-                vehicle.y < -100 ||
-                vehicle.y > this.canvas.height + 100
+            // Проверяем, что машина действительно покинула видимую область
+            const isWayOutside = (
+                vehicle.x < -150 ||
+                vehicle.x > this.canvas.width + 150 ||
+                vehicle.y < -150 ||
+                vehicle.y > this.canvas.height + 150
             );
+
+            // Не удаляем машины, которые стоят на светофоре или в перекрестке
+            if (isWayOutside && !vehicle.waiting && !atIntersection(vehicle)) {
+                return false;
+            }
+            return true;
         });
     }
 
