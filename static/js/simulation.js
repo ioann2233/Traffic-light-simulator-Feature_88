@@ -137,6 +137,11 @@ class TrafficSimulation {
         const CRITICAL_ZONE = 30;  // Зона обязательного проезда при желтом сигнале
         const STOP_LINE_DISTANCE = 50; // Distance to stop line before intersection
 
+        const isVertical = vehicle => vehicle.direction === 'north' || vehicle.direction === 'south';
+        const distanceToIntersection = vehicle => isVertical(vehicle) ? 
+            Math.abs(vehicle.y - this.intersection.y) :
+            Math.abs(vehicle.x - this.intersection.x);
+
         const accelerateVehicle = (current, max, accelerationRate) => {
             if (current < max) {
                 return Math.min(current + accelerationRate, max);
@@ -177,28 +182,29 @@ class TrafficSimulation {
             const isRedLight = !canPass && isApproachingIntersection;
 
             // Логика для желтого сигнала
-            if (isYellowLight && isApproachingIntersection) {
-                // Если машина близко к перекрестку - останавливаем
-                if (distanceToIntersection < STOP_LINE_DISTANCE) {
+            if (isYellowLight) {
+                // Если машина приближается к перекрестку
+                if (distanceToIntersection(vehicle) < STOP_LINE_DISTANCE) {
+                    // Машины, которые уже на перекрестке, продолжают движение
+                    if (!atIntersection) {
+                        vehicle.currentSpeed.dx = 0;
+                        vehicle.currentSpeed.dy = 0;
+                        vehicle.waiting = true;
+                        return true;
+                    }
+                }
+                // Машины вдали от перекрестка продолжают движение с текущей скоростью
+                return true;
+            }
+
+            // Добавить обработку красного сигнала
+            if (isRedLight) {
+                if (distanceToIntersection(vehicle) < STOP_LINE_DISTANCE && !atIntersection) {
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
                     vehicle.waiting = true;
-                    return true; // Оставляем машину в симуляции
-                }
-                // Если машина далеко - продолжаем движение
-                else {
-                    vehicle.currentSpeed.dx *= 0.95;
-                    vehicle.currentSpeed.dy *= 0.95;
                     return true;
                 }
-            }
-
-            // Проверка красного света и остановки
-            if (isRedLight && isAtStopLine) {
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
-                vehicle.waiting = true;
-                return true; // Оставляем машину в симуляции
             }
 
             // Плавное ускорение при зеленом свете
@@ -345,10 +351,10 @@ class TrafficSimulation {
             // Remove vehicles that are off screen (wider boundaries)
             // Убрать удаление машин на желтый сигнал
             return !(
-                (vehicle.x < -50 && !isYellowLight) ||
-                (vehicle.x > this.canvas.width + 50 && !isYellowLight) ||
-                (vehicle.y < -50 && !isYellowLight) ||
-                (vehicle.y > this.canvas.height + 50 && !isYellowLight)
+                vehicle.x < -100 ||
+                vehicle.x > this.canvas.width + 100 ||
+                vehicle.y < -100 ||
+                vehicle.y > this.canvas.height + 100
             );
         });
     }
