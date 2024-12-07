@@ -92,8 +92,9 @@ class TrafficModels {
         return cone;
     }
 
-    static createTrafficLight() {
+    static createTrafficLight(direction) {
         const group = new THREE.Group();
+        group.userData.direction = direction; // Добавляем направление в userData
         
         // Столб светофора
         const post = new THREE.Mesh(

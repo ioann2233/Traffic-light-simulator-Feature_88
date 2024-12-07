@@ -9,12 +9,13 @@ class TrafficSimulation {
         this.trafficLights = {
             north: { state: 'red' },
             south: { state: 'red' },
-            east: { state: 'red' },
-            west: { state: 'red' }
+            east: { state: 'green' },
+            west: { state: 'green' }
         };
 
         // Create base scene
         this.initializeScene();
+        this.setupTrafficLightClicks();
         this.startSimulation();
         
         // Start periodic data updates
@@ -49,6 +50,66 @@ class TrafficSimulation {
             };
             this.updateVehiclesFromCamera(fallbackData);
             this.updateTrafficData(fallbackData);
+        }
+    }
+
+    setupTrafficLightClicks() {
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+        
+        document.getElementById('scene3d').addEventListener('click', (event) => {
+            const rect = event.target.getBoundingClientRect();
+            mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+            mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+            
+            raycaster.setFromCamera(mouse, this.scene3D.camera);
+            
+            const intersects = raycaster.intersectObjects(this.scene3D.scene.children, true);
+            
+            for (const intersect of intersects) {
+                // Проверяем, является ли объект частью светофора
+                let trafficLight = intersect.object;
+                while (trafficLight && !trafficLight.userData.direction) {
+                    trafficLight = trafficLight.parent;
+                }
+                
+                if (trafficLight && trafficLight.userData.direction) {
+                    this.handleTrafficLightClick(trafficLight.userData.direction);
+                    break;
+                }
+            }
+        });
+    }
+
+    handleTrafficLightClick(direction) {
+        const oppositeDirection = {
+            'north': 'south',
+            'south': 'north',
+            'east': 'west',
+            'west': 'east'
+        };
+        
+        // Изменяем состояние кликнутого светофора
+        if (this.trafficLights[direction].state === 'green') {
+            this.trafficLights[direction].state = 'red';
+            // Противоположное направление получает зеленый
+            this.trafficLights[oppositeDirection[direction]].state = 'green';
+            
+            // Перпендикулярные направления получают красный
+            const perpendicular = direction === 'north' || direction === 'south' ? ['east', 'west'] : ['north', 'south'];
+            perpendicular.forEach(dir => {
+                this.trafficLights[dir].state = 'red';
+            });
+        } else {
+            this.trafficLights[direction].state = 'green';
+            // Противоположное направление тоже получает зеленый
+            this.trafficLights[oppositeDirection[direction]].state = 'green';
+            
+            // Перпендикулярные направления получают красный
+            const perpendicular = direction === 'north' || direction === 'south' ? ['east', 'west'] : ['north', 'south'];
+            perpendicular.forEach(dir => {
+                this.trafficLights[dir].state = 'red';
+            });
         }
     }
 
@@ -87,7 +148,6 @@ class TrafficSimulation {
     }
 
     isInCameraView(position) {
-        // Убрать проверку видимости, т.к. нам нужны все машины
         return true;
     }
 
@@ -121,14 +181,14 @@ class TrafficSimulation {
 
     setupTrafficLights() {
         const positions = [
-            { direction: 'north', x: -20, z: 20, rotation: Math.PI },    // Сдвинуты дальше от перекрестка
+            { direction: 'north', x: -20, z: 20, rotation: Math.PI },
             { direction: 'south', x: 20, z: -20, rotation: 0 },
             { direction: 'east', x: 20, z: 20, rotation: Math.PI / 2 },
             { direction: 'west', x: -20, z: -20, rotation: -Math.PI / 2 }
         ];
         
         positions.forEach(pos => {
-            const light = TrafficModels.createTrafficLight();
+            const light = TrafficModels.createTrafficLight(pos.direction);
             light.position.set(pos.x, 0, pos.z);
             light.rotation.y = pos.rotation;
             this[pos.direction + 'Light'] = light;
@@ -187,9 +247,8 @@ class TrafficSimulation {
         const directions = ['north', 'south', 'east', 'west'];
         const direction = forcedDirection || directions[Math.floor(Math.random() * directions.length)];
         
-        // Выбор полосы (0 или 1)
         const lane = Math.floor(Math.random() * 2);
-        const laneOffset = lane * 8; // Увеличенное расстояние между полосами
+        const laneOffset = lane * 8;
         
         const vehicle = {
             mesh: TrafficModels.createVehicle(),
@@ -200,7 +259,6 @@ class TrafficSimulation {
             maxSpeed: { dx: 0, dy: 0 }
         };
 
-        // Установка позиции и скорости с учетом полосы
         switch(direction) {
             case 'north':
                 vehicle.mesh.position.set(-8 + laneOffset, 2, 150);
@@ -223,7 +281,6 @@ class TrafficSimulation {
                 break;
         }
 
-        // Проверка безопасной дистанции
         const isSafeToSpawn = !this.vehicles.some(other => {
             if (other.direction !== direction || other.lane !== lane) return false;
             const distance = Math.sqrt(
@@ -255,21 +312,17 @@ class TrafficSimulation {
         const lightState = this.trafficLights[vehicle.direction].state;
         
         if (inIntersection) {
-            // Машина уже на перекрестке - позволяем проехать
             vehicle.waiting = false;
             vehicle.currentSpeed = {...vehicle.maxSpeed};
         } else if (beforeStopLine) {
             if (lightState === 'red') {
-                // Полная остановка на красный
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
             } else if (lightState === 'yellow') {
-                // На желтый - замедляемся, но не останавливаемся полностью
                 vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
                 vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
             } else {
-                // На зеленый - полная скорость
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};
             }
@@ -277,7 +330,7 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 20;  // Увеличенная безопасная дистанция
+        const SAFE_DISTANCE = 20;
         const SLOW_DISTANCE = 35;
         
         this.vehicles.forEach(other => {
@@ -291,12 +344,10 @@ class TrafficSimulation {
                 );
                 
                 if (distance < SAFE_DISTANCE) {
-                    // Полная остановка при малой дистанции
                     vehicle.waiting = true;
                     vehicle.currentSpeed.dx = 0;
                     vehicle.currentSpeed.dy = 0;
                 } else if (distance < SLOW_DISTANCE) {
-                    // Плавное замедление при средней дистанции
                     vehicle.currentSpeed.dx = other.currentSpeed.dx * 0.5;
                     vehicle.currentSpeed.dy = other.currentSpeed.dy * 0.5;
                 }
@@ -348,7 +399,6 @@ class TrafficSimulation {
                 child.material.emissive
             );
             
-            // Обновляем состояние каждого сигнала
             lights.forEach((light, index) => {
                 const state = this.trafficLights[direction].state;
                 const isActive = (
@@ -357,12 +407,10 @@ class TrafficSimulation {
                     (index === 2 && state === 'green')
                 );
                 
-                // Плавное изменение интенсивности
                 const targetIntensity = isActive ? 1 : 0.1;
                 light.material.emissiveIntensity += 
                     (targetIntensity - light.material.emissiveIntensity) * 0.2;
                 
-                // Обновляем точечный свет
                 if (light.userData.pointLight) {
                     light.userData.pointLight.intensity = isActive ? 0.5 : 0;
                 }
