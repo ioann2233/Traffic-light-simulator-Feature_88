@@ -3,10 +3,7 @@ class QLearningAgent {
         this.minGreenTime = 20000; // 20 секунд
         this.maxGreenTime = 160000; // 160 секунд
         this.yellowTime = 5000; // 5 секунд
-        this.learningRate = 0.1;
-        this.discountFactor = 0.9;
-        this.epsilon = 0.1;
-        this.qTable = {};
+        this.timeStep = 20000; // Шаг изменения времени
     }
     
     calculateGreenTime(trafficData) {
@@ -14,14 +11,9 @@ class QLearningAgent {
             return { nsTime: this.minGreenTime, ewTime: this.minGreenTime };
         }
         
-        const ns_data = trafficData.ns;
-        const ew_data = trafficData.ew;
+        const ns_score = (trafficData.ns.waiting * 2) + (1 / (trafficData.ns.avgSpeed + 0.1));
+        const ew_score = (trafficData.ew.waiting * 2) + (1 / (trafficData.ew.avgSpeed + 0.1));
         
-        // Расчет загруженности для каждого направления
-        const ns_score = (ns_data.waiting * 2) + (1 / (ns_data.avgSpeed + 0.1));
-        const ew_score = (ew_data.waiting * 2) + (1 / (ew_data.avgSpeed + 0.1));
-        
-        // Расчет пропорционального времени
         const total_score = ns_score + ew_score;
         if (total_score === 0) {
             return { nsTime: this.minGreenTime, ewTime: this.minGreenTime };
@@ -150,16 +142,12 @@ class TrafficController {
         };
         
         setInterval(() => {
-            // Проверяем перекресток на наличие машин
             if (!this.checkIntersectionClear()) {
-                // Если перекресток не пустой, не меняем фазу
                 return;
             }
             
             const trafficData = this.simulation.getTrafficData();
-            
-            // Уменьшаем оставшееся время
-            this.currentPhase.timeLeft -= 100;
+            this.currentPhase.timeLeft -= 500; // Уменьшаем частоту обновления
             
             if (this.currentPhase.timeLeft <= 0) {
                 const times = this.rlAgent.calculateGreenTime(trafficData);

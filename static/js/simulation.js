@@ -330,8 +330,9 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 25;
+        const STOP_LINE = 35; // Увеличиваем расстояние до стоп-линии
         const INTERSECTION_ZONE = 10;
+        const SLOW_DOWN_DISTANCE = 60; // Расстояние начала торможения
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
@@ -352,17 +353,21 @@ class TrafficSimulation {
         if (beforeStopLine) {
             const lightState = this.trafficLights[vehicle.direction].state;
             if (lightState === 'red') {
-                vehicle.waiting = true;
-                vehicle.currentSpeed.dx = 0;
-                vehicle.currentSpeed.dy = 0;
-            } else if (lightState === 'yellow') {
-                const distanceToIntersection = Math.min(
-                    Math.abs(position.x),
-                    Math.abs(position.z)
+                // Плавное торможение перед стоп-линией
+                const distanceToStop = Math.min(
+                    Math.abs(Math.abs(position.x) - STOP_LINE),
+                    Math.abs(Math.abs(position.z) - STOP_LINE)
                 );
-                if (distanceToIntersection > INTERSECTION_ZONE * 2) {
-                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
-                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+                
+                if (distanceToStop < 5) {
+                    vehicle.waiting = true;
+                    vehicle.currentSpeed.dx = 0;
+                    vehicle.currentSpeed.dy = 0;
+                } else if (distanceToStop < SLOW_DOWN_DISTANCE) {
+                    // Плавное замедление
+                    const slowDownFactor = distanceToStop / SLOW_DOWN_DISTANCE;
+                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
+                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
                 }
             } else {
                 vehicle.waiting = false;
