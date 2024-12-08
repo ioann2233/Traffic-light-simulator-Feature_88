@@ -67,16 +67,14 @@ class TrafficController {
         setInterval(() => {
             const trafficData = this.simulation.getTrafficData();
             
-            // Уменьшаем время только если это не желтый сигнал
-            if (this.currentPhase.state !== 'yellow') {
-                this.currentPhase.timeLeft -= 500;
-            }
+            // Уменьшаем оставшееся время
+            this.currentPhase.timeLeft -= 500;
             
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
                     // Переключаем на желтый
                     this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = this.rlAgent.yellowTime;
+                    this.currentPhase.timeLeft = 3000; // Фиксированное время для желтого
                     this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
                     // Проверяем, что все машины проехали перекресток
@@ -94,7 +92,7 @@ class TrafficController {
                             this.currentPhase.state = 'green';
                         }, 2000);
                     } else {
-                        // Если перекресток не пуст, добавляем время для желтого
+                        // Если перекресток не пуст, даем еще немного времени
                         this.currentPhase.timeLeft = 1000;
                     }
                 }
