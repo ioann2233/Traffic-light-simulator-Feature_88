@@ -220,7 +220,7 @@ class TrafficSimulation {
 
     setupSpawnInterval() {
         let lastSpawnTime = Date.now();
-        const MIN_SPAWN_INTERVAL = 6000; // Увеличиваем базовый интервал до 6 секунд
+        const MIN_SPAWN_INTERVAL = 8000; // Увеличен интервал между появлением машин
         
         setInterval(() => {
             if (!this.running) return;
@@ -229,24 +229,22 @@ class TrafficSimulation {
             const currentTime = Date.now();
             if (currentTime - lastSpawnTime < MIN_SPAWN_INTERVAL) return;
             
-            // 90% шанс спавна одной машины, 10% шанс спавна двух машин
-            const spawnCount = Math.random() < 0.9 ? 1 : 2;
+            const spawnCount = Math.random() < 0.9 ? 1 : 2; // 90% шанс спавна одной машины
             const directions = ['north', 'south', 'east', 'west'];
             const direction = directions[Math.floor(Math.random() * directions.length)];
             
-            // Добавляем случайную задержку от 0 до 2 секунд для более естественного появления
-            const randomDelay = Math.random() * 2000;
+            // Добавляем случайную задержку от 2 до 4 секунд
+            const randomDelay = 2000 + Math.random() * 2000;
             
             for (let i = 0; i < spawnCount; i++) {
                 setTimeout(() => {
                     const willTurn = Math.random() < 0.3;
                     const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
                     this.spawnVehicle(direction, willTurn ? turnDirection : null);
-                }, i * 3000 + randomDelay); // Увеличиваем интервал между машинами в группе до 3 секунд
+                }, i * 4000 + randomDelay); // Увеличен интервал между машинами до 4 секунд
             }
             
-            // Добавляем случайную составляющую к интервалу следующего спавна
-            lastSpawnTime = currentTime + Math.random() * 2000;
+            lastSpawnTime = currentTime + Math.random() * 3000;
         }, 1000);
     }
 
@@ -366,9 +364,9 @@ class TrafficSimulation {
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 60; // Увеличено безопасное расстояние
-        const SLOW_DISTANCE = 80;
-        const INTERSECTION_ZONE = 10;
+        const SAFE_DISTANCE = 80; // Увеличено безопасное расстояние
+        const SLOW_DISTANCE = 120; // Увеличена зона замедления
+        const INTERSECTION_ZONE = 15;
         
         const inIntersection = Math.abs(vehicle.mesh.position.x) < INTERSECTION_ZONE && 
                               Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE;
@@ -393,12 +391,18 @@ class TrafficSimulation {
                 
                 if (isAhead) {
                     if (distance < SAFE_DISTANCE) {
+                        // Полная остановка при малом расстоянии
                         vehicle.currentSpeed.dx = 0;
                         vehicle.currentSpeed.dy = 0;
+                        vehicle.waiting = true;
                     } else if (distance < SLOW_DISTANCE) {
-                        const slowDownFactor = (distance - SAFE_DISTANCE) / (SLOW_DISTANCE - SAFE_DISTANCE);
+                        // Плавное замедление
+                        const slowDownFactor = Math.pow((distance - SAFE_DISTANCE) / (SLOW_DISTANCE - SAFE_DISTANCE), 2);
                         vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
                         vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
+                        vehicle.waiting = false;
+                    } else {
+                        vehicle.waiting = false;
                     }
                 }
             }
