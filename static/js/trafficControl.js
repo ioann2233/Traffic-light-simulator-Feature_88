@@ -10,6 +10,15 @@ class QLearningAgent {
         this.maxGreenTime = 160000;
         this.timeStep = 20000; // Шаг изменения времени
     }
+
+    calculateGreenTime(trafficData) {
+        const state = this.getState(trafficData);
+        const action = this.getAction(state);
+        return {
+            nsTime: action.nsTime,
+            ewTime: action.ewTime
+        };
+    }
     
     getState(trafficData) {
         // Дискретизация состояния
