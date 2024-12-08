@@ -326,12 +326,17 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 12; // Уменьшено до 12
+        const STOP_LINE = 15;
         const INTERSECTION_ZONE = 10;
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
+        
+        if (inIntersection) {
+            vehicle.waiting = false;
+            return;
+        }
         
         const beforeStopLine = 
             (vehicle.direction === 'north' && position.z > STOP_LINE) ||
@@ -339,37 +344,15 @@ class TrafficSimulation {
             (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
             (vehicle.direction === 'west' && position.x > STOP_LINE);
         
-        const lightState = this.trafficLights[vehicle.direction].state;
-        
-        // Если машина приближается к перекрестку
         if (beforeStopLine) {
-            if (lightState === 'red' || lightState === 'yellow') {
+            const lightState = this.trafficLights[vehicle.direction].state;
+            if (lightState === 'red') {
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
-            }
-        }
-        
-        // Если машина уже в перекрестке
-        if (inIntersection) {
-            if (lightState === 'red' || lightState === 'yellow') {
-                if (!vehicle.crossingOnGreen) {
-                    vehicle.waiting = true;
-                    vehicle.currentSpeed.dx = 0;
-                    vehicle.currentSpeed.dy = 0;
-                }
             } else {
-                vehicle.crossingOnGreen = true;
                 vehicle.waiting = false;
             }
-        } else {
-            vehicle.crossingOnGreen = false;
-        }
-        
-        // Если зеленый - можно ехать
-        if (lightState === 'green' && !inIntersection) {
-            vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
         }
     }
 
