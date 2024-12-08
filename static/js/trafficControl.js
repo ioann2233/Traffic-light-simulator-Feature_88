@@ -2,7 +2,7 @@ class QLearningAgent {
     constructor() {
         this.minGreenTime = 20000; // 20 секунд
         this.maxGreenTime = 160000; // 160 секунд
-        this.yellowTime = 3000; // уменьшено до 3 секунд
+        this.yellowTime = 3000; // 3 секунды
     }
     
     calculateGreenTime(trafficData) {
@@ -66,33 +66,39 @@ class TrafficController {
         
         setInterval(() => {
             const trafficData = this.simulation.getTrafficData();
-            
-            // Уменьшаем оставшееся время
             this.currentPhase.timeLeft -= 500;
             
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
-                    // Переключаем на желтый
+                    // Сначала переключаем на желтый
                     this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = 3000; // Фиксированное время для желтого
+                    this.currentPhase.timeLeft = 3000; // 3 секунды для желтого
                     this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Проверяем, что все машины проехали перекресток
+                    // Затем на красный, если перекресток пуст
                     if (this.checkIntersectionClear()) {
                         this.currentPhase.state = 'red';
                         this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
                         
+                        // И только после этого меняем направление и включаем зеленый
                         setTimeout(() => {
                             this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                             const times = this.rlAgent.calculateGreenTime(trafficData);
                             this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
                                 times.nsTime : times.ewTime;
+                                
+                            // Сначала желтый для нового направления
+                            this.currentPhase.state = 'yellow';
+                            this.animateTransition(this.currentPhase.direction, 'red', 'yellow', 2000);
                             
-                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
-                            this.currentPhase.state = 'green';
+                            // Затем зеленый
+                            setTimeout(() => {
+                                this.currentPhase.state = 'green';
+                                this.animateTransition(this.currentPhase.direction, 'yellow', 'green', 2000);
+                            }, 2000);
                         }, 2000);
                     } else {
-                        // Если перекресток не пуст, даем еще немного времени
+                        // Если перекресток не пуст, добавляем время для желтого
                         this.currentPhase.timeLeft = 1000;
                     }
                 }
@@ -114,13 +120,13 @@ class TrafficController {
                 elements.glowSphere.material.opacity = 0;
             });
             
-            // Затем включаем активный сигнал с увеличенной яркостью
+            // Затем включаем активный сигнал
             const state = this.simulation.trafficLights[direction].state;
             const activeElements = lightMesh.userData.lights[state];
             if (activeElements) {
                 activeElements.light.material.emissiveIntensity = 1;
-                activeElements.glow.intensity = 8; // Увеличена яркость
-                activeElements.glowSphere.material.opacity = 0.6; // Увеличена прозрачность
+                activeElements.glow.intensity = 8;
+                activeElements.glowSphere.material.opacity = 0.6;
             }
         });
     }
