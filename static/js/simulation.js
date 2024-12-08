@@ -51,40 +51,35 @@ class TrafficSimulation {
                 })
             });
             
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
             const data = await response.json();
             
-            if (data.error) {
-                console.warn('Camera data warning:', data.error);
-            }
-            
+            // Обновляем данные о трафике
             this.updateTrafficData(data);
             
-            // Update vehicle spawning based on traffic data
-            this.updateVehiclesFromCamera(data);
-            
-            // Update traffic lights based on data
-            if (window.controller) {
-                window.controller.updateTrafficLights(data);
-            }
+            return data;
         } catch (error) {
             console.warn('Error fetching camera data:', error);
-            // Use default values if there's an error
-            const defaultData = {
-                ns: { count: 1, waiting: 0, avgSpeed: 0.6 },
-                ew: { count: 1, waiting: 0, avgSpeed: 0.6 }
-            };
-            this.updateTrafficData(defaultData);
+            // Используем реальные данные из симуляции вместо значений по умолчанию
+            const simulationData = this.getTrafficData();
+            this.updateTrafficData(simulationData);
+            return simulationData;
         }
     }
 
     updateTrafficData(data) {
-        // Update UI with traffic data
-        document.getElementById('ns-queue').textContent = data.ns.waiting;
-        document.getElementById('ew-queue').textContent = data.ew.waiting;
+        // Обновляем UI с данными о трафике
+        document.getElementById('ns-queue').textContent = 
+            data.ns ? data.ns.waiting : this.getTrafficData().ns.waiting;
+        document.getElementById('ew-queue').textContent = 
+            data.ew ? data.ew.waiting : this.getTrafficData().ew.waiting;
         document.getElementById('ns-speed').textContent = 
-            Math.round(data.ns.avgSpeed * 50) + ' км/ч';
+            Math.round((data.ns ? data.ns.avgSpeed : this.getTrafficData().ns.avgSpeed) * 50) + ' км/ч';
         document.getElementById('ew-speed').textContent = 
-            Math.round(data.ew.avgSpeed * 50) + ' км/ч';
+            Math.round((data.ew ? data.ew.avgSpeed : this.getTrafficData().ew.avgSpeed) * 50) + ' км/ч';
     }
 
     setupTrafficLightClicks() {
@@ -322,9 +317,9 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 20; // Уменьшено расстояние до стоп-линии с 35 до 20
+        const STOP_LINE = 15; // Уменьшено с 20 до 15
         const INTERSECTION_ZONE = 10;
-        const SLOW_DOWN_DISTANCE = 40; // Уменьшено расстояние начала торможения
+        const SLOW_DOWN_DISTANCE = 30; // Уменьшено с 40 до 30
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
