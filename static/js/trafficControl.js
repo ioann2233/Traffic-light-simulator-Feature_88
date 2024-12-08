@@ -70,32 +70,23 @@ class TrafficController {
             
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
-                    // Сначала переключаем на желтый
                     this.currentPhase.state = 'yellow';
                     this.currentPhase.timeLeft = 3000; // 3 секунды для желтого
                     this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Затем на красный, если перекресток пуст
+                    // Проверяем, что перекресток пуст
                     if (this.checkIntersectionClear()) {
                         this.currentPhase.state = 'red';
                         this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
                         
-                        // И только после этого меняем направление и включаем зеленый
                         setTimeout(() => {
                             this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                             const times = this.rlAgent.calculateGreenTime(trafficData);
                             this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
                                 times.nsTime : times.ewTime;
-                                
-                            // Сначала желтый для нового направления
-                            this.currentPhase.state = 'yellow';
-                            this.animateTransition(this.currentPhase.direction, 'red', 'yellow', 2000);
                             
-                            // Затем зеленый
-                            setTimeout(() => {
-                                this.currentPhase.state = 'green';
-                                this.animateTransition(this.currentPhase.direction, 'yellow', 'green', 2000);
-                            }, 2000);
+                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
+                            this.currentPhase.state = 'green';
                         }, 2000);
                     } else {
                         // Если перекресток не пуст, добавляем время для желтого
