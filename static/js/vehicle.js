@@ -44,7 +44,14 @@ class Vehicle {
     }
     
     updatePosition() {
+        const ACCELERATION = 0.02;
+        const DECELERATION = 0.03;
+
         if (!this.waiting) {
+            // Плавное ускорение
+            this.currentSpeed.dx += (this.maxSpeed.dx - this.currentSpeed.dx) * ACCELERATION;
+            this.currentSpeed.dy += (this.maxSpeed.dy - this.currentSpeed.dy) * ACCELERATION;
+
             let targetRotation = this.mesh.rotation.y;
             const turnRadius = 20;
             
@@ -61,8 +68,9 @@ class Vehicle {
                 // Плавный поворот
                 this.mesh.rotation.y += (targetRotation - this.mesh.rotation.y) * 0.1;
                 
-                // Движение по дуге
-                const speed = 0.3;
+                // Движение по дуге с учетом текущей скорости
+                const speed = Math.sqrt(this.currentSpeed.dx * this.currentSpeed.dx + 
+                                     this.currentSpeed.dy * this.currentSpeed.dy);
                 this.mesh.position.x += Math.cos(this.mesh.rotation.y) * speed;
                 this.mesh.position.z += Math.sin(this.mesh.rotation.y) * speed;
             } else {
@@ -70,6 +78,10 @@ class Vehicle {
                 this.mesh.position.x += this.currentSpeed.dx;
                 this.mesh.position.z += this.currentSpeed.dy;
             }
+        } else {
+            // Плавное торможение
+            this.currentSpeed.dx *= (1 - DECELERATION);
+            this.currentSpeed.dy *= (1 - DECELERATION);
         }
     }
 }

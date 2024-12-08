@@ -97,48 +97,60 @@ class TrafficController {
         this.startAutomaticControl();
     }
 
+    checkIntersectionClear() {
+        const INTERSECTION_ZONE = 15;
+        return !this.simulation.vehicles.some(vehicle => 
+            Math.abs(vehicle.mesh.position.x) < INTERSECTION_ZONE && 
+            Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE
+        );
+    }
+
     startAutomaticControl() {
         this.currentPhase = {
             direction: 'ns',
             state: 'green',
-            timeLeft: 60000
+            timeLeft: this.rlAgent.minGreenTime
         };
         
         setInterval(() => {
-            const trafficData = this.simulation.getTrafficData();
-            const currentState = this.rlAgent.getState(trafficData);
+            if (!this.checkIntersectionClear()) {
+                // Если перекресток не пустой, добавляем время
+                this.currentPhase.timeLeft = Math.max(this.currentPhase.timeLeft, 2000);
+                return;
+            }
             
-            // Плавное уменьшение времени
+            // Остальная логика только если перекресток пуст
+            const trafficData = this.simulation.getTrafficData();
+            const times = this.rlAgent.calculateGreenTime(trafficData);
+            
             this.currentPhase.timeLeft -= 100;
             
             if (this.currentPhase.timeLeft <= 0) {
                 if (this.currentPhase.state === 'green') {
-                    // Плавный переход на желтый
+                    // Переход на желтый
                     this.currentPhase.state = 'yellow';
                     this.currentPhase.timeLeft = 5000;
-                    this.setLights(this.currentPhase.direction, 'yellow');
+                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
                     // Переход на красный и смена направления
                     this.currentPhase.state = 'red';
-                    this.setLights(this.currentPhase.direction, 'red');
+                    this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
                     
                     // Меняем направление
                     this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
                     
-                    // Получаем оптимальное время от RL агента
-                    const action = this.rlAgent.getAction(currentState);
-                    const nextGreenTime = this.currentPhase.direction === 'ns' ? 
-                        action.nsTime : action.ewTime;
+                    // Устанавливаем время следующей фазы
+                    this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
+                        times.nsTime : times.ewTime;
                     
-                    // Устанавливаем время в пределах от 20 до 160 секунд
-                    this.currentPhase.timeLeft = Math.max(20000, Math.min(160000, nextGreenTime));
-                    
-                    // Устанавливаем зеленый для нового направления
-                    this.setLights(this.currentPhase.direction, 'green');
+                    // Устанавливаем зеленый для нового направления через задержку
+                    setTimeout(() => {
+                        this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
+                        this.currentPhase.state = 'green';
+                    }, 2000);
                 }
             }
             
-            // Обновляем свечение светофоров
             this.updateLightIntensities();
         }, 100);
     }

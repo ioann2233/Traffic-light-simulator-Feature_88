@@ -71,5 +71,21 @@
     <script src="/static/js/simulation.js"></script>
     <script src="/static/js/trafficControl.js"></script>
     <script src="/static/js/visualization.js"></script>
+    <script>
+    document.addEventListener('click', (event) => {
+        const dialog = document.getElementById('trafficLightDialog');
+        if (dialog.style.display === 'block') {
+            const rect = dialog.getBoundingClientRect();
+            const isClickInside = rect.left <= event.clientX && 
+                                event.clientX <= rect.right &&
+                                rect.top <= event.clientY && 
+                                event.clientY <= rect.bottom;
+            
+            if (!isClickInside) {
+                dialog.style.display = 'none';
+            }
+        }
+    });
+    </script>
 </body>
 </html>
