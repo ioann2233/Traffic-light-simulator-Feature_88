@@ -219,19 +219,31 @@ class TrafficSimulation {
     }
 
     setupSpawnInterval() {
+        let lastSpawnTime = Date.now();
+        const MIN_SPAWN_INTERVAL = 4000; // Минимальный интервал между машинами
+        
         setInterval(() => {
             if (!this.running) return;
-            if (this.vehicles.length >= 10) return; // Ограничение общего количества машин
+            if (this.vehicles.length >= 10) return;
             
+            const currentTime = Date.now();
+            if (currentTime - lastSpawnTime < MIN_SPAWN_INTERVAL) return;
+            
+            // 70% шанс спавна одной машины, 30% шанс спавна двух машин
+            const spawnCount = Math.random() < 0.7 ? 1 : 2;
             const directions = ['north', 'south', 'east', 'west'];
             const direction = directions[Math.floor(Math.random() * directions.length)];
             
-            // Добавляем вероятность поворота
-            const willTurn = Math.random() < 0.3; // 30% шанс поворота
-            const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+            for (let i = 0; i < spawnCount; i++) {
+                setTimeout(() => {
+                    const willTurn = Math.random() < 0.3;
+                    const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+                    this.spawnVehicle(direction, willTurn ? turnDirection : null);
+                }, i * 2000); // 2 секунды между машинами в группе
+            }
             
-            this.spawnVehicle(direction, willTurn ? turnDirection : null);
-        }, 4000); // Увеличиваем интервал до 4 секунд
+            lastSpawnTime = currentTime;
+        }, 1000);
     }
 
     animate() {

@@ -1,16 +1,45 @@
 class QLearningAgent {
     constructor() {
-        this.qTable = {};
-        this.learningRate = 0.1;
-        this.discountFactor = 0.9;
-        this.epsilon = 0.1;
-        
-        // Временные интервалы для светофоров (в миллисекундах)
-        this.minGreenTime = 20000;
-        this.maxGreenTime = 160000;
-        this.timeStep = 20000; // Шаг изменения времени
+        this.minGreenTime = 20000; // 20 секунд
+        this.maxGreenTime = 160000; // 160 секунд
+        this.yellowTime = 5000; // 5 секунд
     }
     
+    calculateGreenTime(trafficData) {
+        const ns_data = trafficData.ns;
+        const ew_data = trafficData.ew;
+        
+        // Расчет загруженности для каждого направления
+        const ns_score = (ns_data.waiting * 2) + (1 / (ns_data.avgSpeed + 0.1));
+        const ew_score = (ew_data.waiting * 2) + (1 / (ew_data.avgSpeed + 0.1));
+        
+        // Расчет пропорционального времени
+        const total_score = ns_score + ew_score;
+        if (total_score === 0) {
+            return { nsTime: this.minGreenTime, ewTime: this.minGreenTime };
+        }
+        
+        const variable_time = this.maxGreenTime - this.minGreenTime;
+        
+        const ns_green_time = Math.max(
+            this.minGreenTime,
+            Math.min(
+                this.maxGreenTime,
+                this.minGreenTime + (variable_time * (ns_score / total_score))
+            )
+        );
+        
+        const ew_green_time = Math.max(
+            this.minGreenTime,
+            Math.min(
+                this.maxGreenTime,
+                this.minGreenTime + (variable_time * (ew_score / total_score))
+            )
+        );
+        
+        return { nsTime: ns_green_time, ewTime: ew_green_time };
+    }
+
     getState(trafficData) {
         // Дискретизация состояния
         const nsWaiting = Math.min(Math.floor(trafficData.ns.waiting / 5), 5);
@@ -113,41 +142,45 @@ class TrafficController {
         };
         
         setInterval(() => {
+            // Проверяем перекресток на наличие машин
             if (!this.checkIntersectionClear()) {
-                // Если перекресток не пустой, добавляем время
-                this.currentPhase.timeLeft = Math.max(this.currentPhase.timeLeft, 2000);
+                // Если перекресток не пустой, не меняем фазу
                 return;
             }
             
-            // Остальная логика только если перекресток пуст
             const trafficData = this.simulation.getTrafficData();
-            const times = this.rlAgent.calculateGreenTime(trafficData);
             
+            // Уменьшаем оставшееся время
             this.currentPhase.timeLeft -= 100;
             
             if (this.currentPhase.timeLeft <= 0) {
+                const times = this.rlAgent.calculateGreenTime(trafficData);
+                
                 if (this.currentPhase.state === 'green') {
-                    // Переход на желтый
+                    // Плавный переход на желтый
                     this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = 5000;
-                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
+                    this.currentPhase.timeLeft = 5000; // 5 секунд на желтый
+                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 3000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Переход на красный и смена направления
+                    // Плавный переход на красный
                     this.currentPhase.state = 'red';
-                    this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
+                    this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 3000);
                     
-                    // Меняем направление
-                    this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
-                    
-                    // Устанавливаем время следующей фазы
-                    this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
-                        times.nsTime : times.ewTime;
-                    
-                    // Устанавливаем зеленый для нового направления через задержку
+                    // Ждем окончания анимации перехода на красный
                     setTimeout(() => {
-                        this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
-                        this.currentPhase.state = 'green';
-                    }, 2000);
+                        // Меняем направление
+                        this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
+                        
+                        // Устанавливаем время следующей фазы
+                        this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
+                            times.nsTime : times.ewTime;
+                        
+                        // Плавный переход на зеленый для нового направления
+                        setTimeout(() => {
+                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 3000);
+                            this.currentPhase.state = 'green';
+                        }, 2000);
+                    }, 3000);
                 }
             }
             
@@ -175,13 +208,21 @@ class TrafficController {
             const lightMesh = this.simulation[direction + 'Light'];
             if (!lightMesh || !lightMesh.userData.lights) return;
             
-            const state = this.simulation.trafficLights[direction].state;
-            Object.entries(lightMesh.userData.lights).forEach(([lightState, elements]) => {
-                const isActive = lightState === state;
-                elements.light.material.emissiveIntensity = isActive ? 1 : 0;
-                elements.glow.intensity = isActive ? 2 : 0;
-                elements.glowSphere.material.opacity = isActive ? 0.3 : 0;
+            // Сначала выключаем все сигналы
+            Object.values(lightMesh.userData.lights).forEach(elements => {
+                elements.light.material.emissiveIntensity = 0;
+                elements.glow.intensity = 0;
+                elements.glowSphere.material.opacity = 0;
             });
+            
+            // Затем включаем активный сигнал
+            const state = this.simulation.trafficLights[direction].state;
+            const activeElements = lightMesh.userData.lights[state];
+            if (activeElements) {
+                activeElements.light.material.emissiveIntensity = 1;
+                activeElements.glow.intensity = 5; // Увеличиваем яркость свечения
+                activeElements.glowSphere.material.opacity = 0.5;
+            }
         });
     }
 
