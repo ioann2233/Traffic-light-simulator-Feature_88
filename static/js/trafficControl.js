@@ -3,9 +3,17 @@ class QLearningAgent {
         this.minGreenTime = 20000; // 20 секунд
         this.maxGreenTime = 160000; // 160 секунд
         this.yellowTime = 5000; // 5 секунд
+        this.learningRate = 0.1;
+        this.discountFactor = 0.9;
+        this.epsilon = 0.1;
+        this.qTable = {};
     }
     
     calculateGreenTime(trafficData) {
+        if (!trafficData || !trafficData.ns || !trafficData.ew) {
+            return { nsTime: this.minGreenTime, ewTime: this.minGreenTime };
+        }
+        
         const ns_data = trafficData.ns;
         const ew_data = trafficData.ew;
         
