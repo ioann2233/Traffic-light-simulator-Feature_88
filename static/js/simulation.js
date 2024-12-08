@@ -51,11 +51,12 @@ class TrafficSimulation {
                 })
             });
             
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
+            const data = await response.json();
+            
+            if (data.error) {
+                console.warn('Camera data warning:', data.error);
             }
             
-            const data = await response.json();
             this.updateTrafficData(data);
             
             // Update vehicle spawning based on traffic data
@@ -66,7 +67,13 @@ class TrafficSimulation {
                 window.controller.updateTrafficLights(data);
             }
         } catch (error) {
-            console.error('Error fetching camera data:', error);
+            console.warn('Error fetching camera data:', error);
+            // Use default values if there's an error
+            const defaultData = {
+                ns: { count: 1, waiting: 0, avgSpeed: 0.6 },
+                ew: { count: 1, waiting: 0, avgSpeed: 0.6 }
+            };
+            this.updateTrafficData(defaultData);
         }
     }
 
@@ -315,8 +322,9 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 35;
+        const STOP_LINE = 20; // Уменьшено расстояние до стоп-линии с 35 до 20
         const INTERSECTION_ZONE = 10;
+        const SLOW_DOWN_DISTANCE = 40; // Уменьшено расстояние начала торможения
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
