@@ -51,22 +51,31 @@ class TrafficSimulation {
                 })
             });
             
+            const data = await response.json();
+            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            const data = await response.json();
-            
-            // Обновляем данные о трафике
-            this.updateTrafficData(data);
+            // Only update if we have valid data
+            if (data && data.ns && data.ew) {
+                this.updateTrafficData(data);
+                
+                // Update vehicle spawning based on traffic data
+                this.updateVehiclesFromCamera(data);
+                
+                // Update traffic lights based on data
+                if (window.controller) {
+                    window.controller.updateTrafficLights(data);
+                }
+            }
             
             return data;
         } catch (error) {
-            console.warn('Error fetching camera data:', error);
-            // Используем реальные данные из симуляции вместо значений по умолчанию
-            const simulationData = this.getTrafficData();
-            this.updateTrafficData(simulationData);
-            return simulationData;
+            // Use simulated data for visualization
+            const simulatedData = this.getTrafficData();
+            this.updateTrafficData(simulatedData);
+            return simulatedData;
         }
     }
 

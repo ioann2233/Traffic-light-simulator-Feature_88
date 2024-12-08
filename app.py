@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, send_file, request
+from flask import Flask, render_template, jsonify, request
 import cv2
 import numpy as np
 import io
@@ -52,75 +52,38 @@ def calculate_average_speed(objects, directions):
     # In a real implementation, this would calculate actual speeds
     return len(direction_objects) / max(len(objects), 1)
 
-def process_camera_frame(frame):
-    # Convert to grayscale for motion detection
-    gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-    # Blur to reduce noise
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    
-    # Detect moving objects
-    objects = detect_vehicles(blur)
-    
-    return {
-        'northSouth': {
-            'count': len([obj for obj in objects if obj['direction'] in ['north', 'south']]),
-            'speed': calculate_average_speed(objects, ['north', 'south'])
-        },
-        'eastWest': {
-            'count': len([obj for obj in objects if obj['direction'] in ['east', 'west']]),
-            'speed': calculate_average_speed(objects, ['east', 'west'])
-        }
-    }
-
 @app.route('/')
 def index():
     return render_template('index.html')
-
-@app.route('/download')
-def download():
-    return send_file(
-        'traffic_algorithm.py',
-        as_attachment=True,
-        download_name='smart_traffic_control.py'
-    )
 
 @app.route('/api/camera-data', methods=['POST'])
 def update_camera_data():
     try:
         data = request.get_json()
-        if data is None:
-            data = {'camera_id': 'cam1'}
-            
-        camera_id = data.get('camera_id', 'cam1')
+        camera_id = data.get('camera_id', 'cam1') if data else 'cam1'
         
-        # Генерация реалистичных данных
-        ns_count = random.randint(0, 3)  # Уменьшено максимальное количество
-        ew_count = random.randint(0, 3)
+        ns_count = random.randint(0, 5)
+        ew_count = random.randint(0, 5)
         
-        ns_waiting = min(random.randint(0, ns_count), ns_count)
-        ew_waiting = min(random.randint(0, ew_count), ew_count)
-        
-        response_data = {
+        return jsonify({
             'camera_id': camera_id,
             'ns': {
                 'count': ns_count,
-                'waiting': ns_waiting,
+                'waiting': random.randint(0, ns_count),
                 'avgSpeed': random.uniform(0.4, 0.8)
             },
             'ew': {
                 'count': ew_count,
-                'waiting': ew_waiting,
+                'waiting': random.randint(0, ew_count),
                 'avgSpeed': random.uniform(0.4, 0.8)
             }
-        }
-        
-        return jsonify(response_data)
+        })
     except Exception as e:
+        print(f"Error in update_camera_data: {str(e)}")
         return jsonify({
-            'error': str(e),
-            'ns': {'count': 1, 'waiting': 0, 'avgSpeed': 0.6},
-            'ew': {'count': 1, 'waiting': 0, 'avgSpeed': 0.6}
-        }), 200  # Возвращаем 200 даже при ошибке
+            'ns': {'count': 0, 'waiting': 0, 'avgSpeed': 0.5},
+            'ew': {'count': 0, 'waiting': 0, 'avgSpeed': 0.5}
+        })
 
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():
@@ -137,19 +100,6 @@ def get_intersection_info():
             }
         }
     })
-
-@app.route('/api/simulate-camera', methods=['GET'])
-def simulate_camera():
-    camera_id = request.args.get('camera_id', 'cam1')
-    return jsonify({
-        'camera_id': camera_id,
-        'location': {
-            'lat': 55.7558,
-            'lon': 37.6173
-        },
-        'direction': random.choice(['north', 'south', 'east', 'west'])
-    })
-
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)
