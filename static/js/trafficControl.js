@@ -142,46 +142,56 @@ class TrafficController {
         };
         
         setInterval(() => {
-            if (!this.checkIntersectionClear()) {
-                return;
-            }
-            
             const trafficData = this.simulation.getTrafficData();
-            this.currentPhase.timeLeft -= 500; // Уменьшаем частоту обновления
+            
+            // Уменьшаем время только если перекресток пуст или текущий сигнал не зеленый
+            if (this.currentPhase.state !== 'green' || this.checkIntersectionClear()) {
+                this.currentPhase.timeLeft -= 500;
+            }
             
             if (this.currentPhase.timeLeft <= 0) {
                 const times = this.rlAgent.calculateGreenTime(trafficData);
                 
                 if (this.currentPhase.state === 'green') {
-                    // Плавный переход на желтый
-                    this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = 5000; // 5 секунд на желтый
-                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 3000);
+                    // Проверяем, что перекресток пуст перед сменой сигнала
+                    if (this.checkIntersectionClear()) {
+                        this.currentPhase.state = 'yellow';
+                        this.currentPhase.timeLeft = 5000;
+                        this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 3000);
+                    } else {
+                        // Если перекресток не пуст, добавляем время
+                        this.currentPhase.timeLeft = 2000;
+                    }
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Плавный переход на красный
                     this.currentPhase.state = 'red';
                     this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 3000);
                     
-                    // Ждем окончания анимации перехода на красный
                     setTimeout(() => {
-                        // Меняем направление
-                        this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
-                        
-                        // Устанавливаем время следующей фазы
-                        this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
-                            times.nsTime : times.ewTime;
-                        
-                        // Плавный переход на зеленый для нового направления
-                        setTimeout(() => {
-                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 3000);
-                            this.currentPhase.state = 'green';
-                        }, 2000);
+                        // Меняем направление только если перекресток пуст
+                        if (this.checkIntersectionClear()) {
+                            this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
+                            this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
+                                times.nsTime : times.ewTime;
+                            
+                            setTimeout(() => {
+                                if (this.checkIntersectionClear()) {
+                                    this.animateTransition(this.currentPhase.direction, 'red', 'green', 3000);
+                                    this.currentPhase.state = 'green';
+                                } else {
+                                    // Если перекресток не пуст, остаемся на красном
+                                    this.currentPhase.timeLeft = 2000;
+                                }
+                            }, 2000);
+                        } else {
+                            // Если перекресток не пуст, добавляем время
+                            this.currentPhase.timeLeft = 2000;
+                        }
                     }, 3000);
                 }
             }
             
             this.updateLightIntensities();
-        }, 100);
+        }, 500);
     }
     
     setLights(direction, state) {
