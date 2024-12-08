@@ -12,7 +12,6 @@ class Vehicle {
         this.currentSpeed = { dx: 0, dy: 0 };
         this.maxSpeed = { dx: 0, dy: 0 };
         this.lane = 0;
-        this.crossingOnGreen = false; // Флаг для отслеживания въезда на зеленый
         
         if (turnDirection) {
             this.startTurnSignal(turnDirection);

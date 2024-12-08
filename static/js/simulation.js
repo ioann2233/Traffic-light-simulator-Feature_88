@@ -51,44 +51,33 @@ class TrafficSimulation {
                 })
             });
             
-            const data = await response.json();
-            
             if (!response.ok) {
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
             
-            // Only update if we have valid data
-            if (data && data.ns && data.ew) {
-                this.updateTrafficData(data);
-                
-                // Update vehicle spawning based on traffic data
-                this.updateVehiclesFromCamera(data);
-                
-                // Update traffic lights based on data
-                if (window.controller) {
-                    window.controller.updateTrafficLights(data);
-                }
-            }
+            const data = await response.json();
+            this.updateTrafficData(data);
             
-            return data;
+            // Update vehicle spawning based on traffic data
+            this.updateVehiclesFromCamera(data);
+            
+            // Update traffic lights based on data
+            if (window.controller) {
+                window.controller.updateTrafficLights(data);
+            }
         } catch (error) {
-            // Use simulated data for visualization
-            const simulatedData = this.getTrafficData();
-            this.updateTrafficData(simulatedData);
-            return simulatedData;
+            console.error('Error fetching camera data:', error);
         }
     }
 
     updateTrafficData(data) {
-        // Обновляем UI с данными о трафике
-        document.getElementById('ns-queue').textContent = 
-            data.ns ? data.ns.waiting : this.getTrafficData().ns.waiting;
-        document.getElementById('ew-queue').textContent = 
-            data.ew ? data.ew.waiting : this.getTrafficData().ew.waiting;
+        // Update UI with traffic data
+        document.getElementById('ns-queue').textContent = data.ns.waiting;
+        document.getElementById('ew-queue').textContent = data.ew.waiting;
         document.getElementById('ns-speed').textContent = 
-            Math.round((data.ns ? data.ns.avgSpeed : this.getTrafficData().ns.avgSpeed) * 50) + ' км/ч';
+            Math.round(data.ns.avgSpeed * 50) + ' км/ч';
         document.getElementById('ew-speed').textContent = 
-            Math.round((data.ew ? data.ew.avgSpeed : this.getTrafficData().ew.avgSpeed) * 50) + ' км/ч';
+            Math.round(data.ew.avgSpeed * 50) + ' км/ч';
     }
 
     setupTrafficLightClicks() {
@@ -232,18 +221,17 @@ class TrafficSimulation {
     setupSpawnInterval() {
         setInterval(() => {
             if (!this.running) return;
-            if (this.vehicles.length >= 10) return;
+            if (this.vehicles.length >= 10) return; // Ограничение общего количества машин
             
-            const willSpawn = Math.random() < 0.3;
-            if (willSpawn) {
-                const directions = ['north', 'south', 'east', 'west'];
-                const direction = directions[Math.floor(Math.random() * directions.length)];
-                const willTurn = Math.random() < 0.3;
-                const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
-                
-                this.spawnVehicle(direction, willTurn ? turnDirection : null);
-            }
-        }, 2000);
+            const directions = ['north', 'south', 'east', 'west'];
+            const direction = directions[Math.floor(Math.random() * directions.length)];
+            
+            // Добавляем вероятность поворота
+            const willTurn = Math.random() < 0.3; // 30% шанс поворота
+            const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+            
+            this.spawnVehicle(direction, willTurn ? turnDirection : null);
+        }, 4000); // Увеличиваем интервал до 4 секунд
     }
 
     animate() {
@@ -326,7 +314,7 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 15;
+        const STOP_LINE = 25;
         const INTERSECTION_ZONE = 10;
         
         const position = vehicle.mesh.position;
@@ -335,6 +323,7 @@ class TrafficSimulation {
         
         if (inIntersection) {
             vehicle.waiting = false;
+            vehicle.currentSpeed = {...vehicle.maxSpeed};
             return;
         }
         
@@ -350,16 +339,26 @@ class TrafficSimulation {
                 vehicle.waiting = true;
                 vehicle.currentSpeed.dx = 0;
                 vehicle.currentSpeed.dy = 0;
+            } else if (lightState === 'yellow') {
+                const distanceToIntersection = Math.min(
+                    Math.abs(position.x),
+                    Math.abs(position.z)
+                );
+                if (distanceToIntersection > INTERSECTION_ZONE * 2) {
+                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * 0.3;
+                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * 0.3;
+                }
             } else {
                 vehicle.waiting = false;
+                vehicle.currentSpeed = {...vehicle.maxSpeed};
             }
         }
     }
 
     checkCollisions(vehicle) {
-        const SAFE_DISTANCE = 80; // Увеличено безопасное расстояние
-        const SLOW_DISTANCE = 120; // Увеличена зона замедления
-        const INTERSECTION_ZONE = 15;
+        const SAFE_DISTANCE = 60; // Увеличено безопасное расстояние
+        const SLOW_DISTANCE = 80;
+        const INTERSECTION_ZONE = 10;
         
         const inIntersection = Math.abs(vehicle.mesh.position.x) < INTERSECTION_ZONE && 
                               Math.abs(vehicle.mesh.position.z) < INTERSECTION_ZONE;
@@ -384,18 +383,12 @@ class TrafficSimulation {
                 
                 if (isAhead) {
                     if (distance < SAFE_DISTANCE) {
-                        // Полная остановка при малом расстоянии
                         vehicle.currentSpeed.dx = 0;
                         vehicle.currentSpeed.dy = 0;
-                        vehicle.waiting = true;
                     } else if (distance < SLOW_DISTANCE) {
-                        // Плавное замедление
-                        const slowDownFactor = Math.pow((distance - SAFE_DISTANCE) / (SLOW_DISTANCE - SAFE_DISTANCE), 2);
+                        const slowDownFactor = (distance - SAFE_DISTANCE) / (SLOW_DISTANCE - SAFE_DISTANCE);
                         vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
                         vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
-                        vehicle.waiting = false;
-                    } else {
-                        vehicle.waiting = false;
                     }
                 }
             }
