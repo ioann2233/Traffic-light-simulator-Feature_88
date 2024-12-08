@@ -1,8 +1,8 @@
 class QLearningAgent {
     constructor() {
-        this.minGreenTime = 20000;
-        this.maxGreenTime = 160000;
-        this.yellowTime = 5000;
+        this.minGreenTime = 20000; // 20 секунд
+        this.maxGreenTime = 160000; // 160 секунд
+        this.yellowTime = 3000; // уменьшено до 3 секунд
     }
     
     calculateGreenTime(trafficData) {
@@ -73,32 +73,29 @@ class TrafficController {
             }
             
             if (this.currentPhase.timeLeft <= 0) {
-                const times = this.rlAgent.calculateGreenTime(trafficData);
-                
                 if (this.currentPhase.state === 'green') {
                     // Переключаем на желтый
                     this.currentPhase.state = 'yellow';
-                    this.currentPhase.timeLeft = 5000;
-                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 3000);
+                    this.currentPhase.timeLeft = this.rlAgent.yellowTime;
+                    this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 2000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Проверяем, что перекресток пуст
+                    // Проверяем, что все машины проехали перекресток
                     if (this.checkIntersectionClear()) {
                         this.currentPhase.state = 'red';
-                        this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 3000);
+                        this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 2000);
                         
-                        // Меняем направление только после того, как все машины проехали
                         setTimeout(() => {
                             this.currentPhase.direction = (this.currentPhase.direction === 'ns') ? 'ew' : 'ns';
+                            const times = this.rlAgent.calculateGreenTime(trafficData);
                             this.currentPhase.timeLeft = this.currentPhase.direction === 'ns' ? 
                                 times.nsTime : times.ewTime;
                             
-                            // Включаем зеленый для нового направления
-                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 3000);
+                            this.animateTransition(this.currentPhase.direction, 'red', 'green', 2000);
                             this.currentPhase.state = 'green';
-                        }, 3000);
+                        }, 2000);
                     } else {
-                        // Если перекресток не пуст, добавляем время для желтого сигнала
-                        this.currentPhase.timeLeft = 2000;
+                        // Если перекресток не пуст, добавляем время для желтого
+                        this.currentPhase.timeLeft = 1000;
                     }
                 }
             }

@@ -94,8 +94,8 @@ def update_camera_data():
         camera_id = data.get('camera_id', 'cam1')
         
         # Генерация реалистичных данных
-        ns_count = random.randint(3, 10)
-        ew_count = random.randint(3, 10)
+        ns_count = random.randint(0, 3)  # Уменьшено максимальное количество
+        ew_count = random.randint(0, 3)
         
         ns_waiting = min(random.randint(0, ns_count), ns_count)
         ew_waiting = min(random.randint(0, ew_count), ew_count)
@@ -116,11 +116,11 @@ def update_camera_data():
         
         return jsonify(response_data)
     except Exception as e:
-        print(f"Error in update_camera_data: {str(e)}")
         return jsonify({
-            'ns': {'count': 5, 'waiting': 2, 'avgSpeed': 0.6},
-            'ew': {'count': 5, 'waiting': 2, 'avgSpeed': 0.6}
-        })
+            'error': str(e),
+            'ns': {'count': 1, 'waiting': 0, 'avgSpeed': 0.6},
+            'ew': {'count': 1, 'waiting': 0, 'avgSpeed': 0.6}
+        }), 200  # Возвращаем 200 даже при ошибке
 
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():
