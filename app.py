@@ -125,7 +125,7 @@ def update_camera_data():
 @app.route('/api/intersection-info', methods=['GET'])
 def get_intersection_info():
     return jsonify({
-        'name': 'Перекресток №1',
+        'name': 'Перекресток ул. Ленина - ул. Пушкина',
         'cameras': {
             'ns': {
                 'ip': '192.168.1.101',
