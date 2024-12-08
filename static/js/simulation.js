@@ -219,33 +219,20 @@ class TrafficSimulation {
     }
 
     setupSpawnInterval() {
-        let lastSpawnTime = Date.now();
-        const MIN_SPAWN_INTERVAL = 8000; // Увеличен интервал между появлением машин
-        
         setInterval(() => {
             if (!this.running) return;
             if (this.vehicles.length >= 10) return;
             
-            const currentTime = Date.now();
-            if (currentTime - lastSpawnTime < MIN_SPAWN_INTERVAL) return;
-            
-            const spawnCount = Math.random() < 0.9 ? 1 : 2; // 90% шанс спавна одной машины
-            const directions = ['north', 'south', 'east', 'west'];
-            const direction = directions[Math.floor(Math.random() * directions.length)];
-            
-            // Добавляем случайную задержку от 2 до 4 секунд
-            const randomDelay = 2000 + Math.random() * 2000;
-            
-            for (let i = 0; i < spawnCount; i++) {
-                setTimeout(() => {
-                    const willTurn = Math.random() < 0.3;
-                    const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
-                    this.spawnVehicle(direction, willTurn ? turnDirection : null);
-                }, i * 4000 + randomDelay); // Увеличен интервал между машинами до 4 секунд
+            const willSpawn = Math.random() < 0.3;
+            if (willSpawn) {
+                const directions = ['north', 'south', 'east', 'west'];
+                const direction = directions[Math.floor(Math.random() * directions.length)];
+                const willTurn = Math.random() < 0.3;
+                const turnDirection = Math.random() < 0.5 ? 'left' : 'right';
+                
+                this.spawnVehicle(direction, willTurn ? turnDirection : null);
             }
-            
-            lastSpawnTime = currentTime + Math.random() * 3000;
-        }, 1000);
+        }, 2000);
     }
 
     animate() {

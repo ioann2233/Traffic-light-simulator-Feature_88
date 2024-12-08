@@ -76,12 +76,12 @@ class TrafficController {
                 const times = this.rlAgent.calculateGreenTime(trafficData);
                 
                 if (this.currentPhase.state === 'green') {
-                    // Переключаем на желтый и ждем, пока машины проедут
+                    // Переключаем на желтый
                     this.currentPhase.state = 'yellow';
                     this.currentPhase.timeLeft = 5000;
                     this.animateTransition(this.currentPhase.direction, 'green', 'yellow', 3000);
                 } else if (this.currentPhase.state === 'yellow') {
-                    // Проверяем, что все машины проехали перекресток
+                    // Проверяем, что перекресток пуст
                     if (this.checkIntersectionClear()) {
                         this.currentPhase.state = 'red';
                         this.animateTransition(this.currentPhase.direction, 'yellow', 'red', 3000);
