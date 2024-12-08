@@ -330,17 +330,19 @@ class TrafficSimulation {
     }
 
     checkTrafficLights(vehicle) {
-        const STOP_LINE = 35; // Увеличиваем расстояние до стоп-линии
+        const STOP_LINE = 35;
         const INTERSECTION_ZONE = 10;
-        const SLOW_DOWN_DISTANCE = 60; // Расстояние начала торможения
+        const SLOW_DOWN_DISTANCE = 60;
         
         const position = vehicle.mesh.position;
         const inIntersection = Math.abs(position.x) < INTERSECTION_ZONE && 
                               Math.abs(position.z) < INTERSECTION_ZONE;
         
-        if (inIntersection) {
-            vehicle.waiting = false;
-            vehicle.currentSpeed = {...vehicle.maxSpeed};
+        // Если машина уже в зоне перекрестка и едет на зеленый, позволяем закончить маневр
+        if (inIntersection && 
+            this.trafficLights[vehicle.direction].state === 'green' &&
+            vehicle.currentSpeed.dx !== 0 || 
+            vehicle.currentSpeed.dy !== 0) {
             return;
         }
         
@@ -350,25 +352,12 @@ class TrafficSimulation {
             (vehicle.direction === 'east' && position.x < -STOP_LINE) ||
             (vehicle.direction === 'west' && position.x > STOP_LINE);
         
-        if (beforeStopLine) {
+        if (beforeStopLine || inIntersection) {
             const lightState = this.trafficLights[vehicle.direction].state;
-            if (lightState === 'red') {
-                // Плавное торможение перед стоп-линией
-                const distanceToStop = Math.min(
-                    Math.abs(Math.abs(position.x) - STOP_LINE),
-                    Math.abs(Math.abs(position.z) - STOP_LINE)
-                );
-                
-                if (distanceToStop < 5) {
-                    vehicle.waiting = true;
-                    vehicle.currentSpeed.dx = 0;
-                    vehicle.currentSpeed.dy = 0;
-                } else if (distanceToStop < SLOW_DOWN_DISTANCE) {
-                    // Плавное замедление
-                    const slowDownFactor = distanceToStop / SLOW_DOWN_DISTANCE;
-                    vehicle.currentSpeed.dx = vehicle.maxSpeed.dx * slowDownFactor;
-                    vehicle.currentSpeed.dy = vehicle.maxSpeed.dy * slowDownFactor;
-                }
+            if (lightState === 'red' || lightState === 'yellow') {
+                vehicle.waiting = true;
+                vehicle.currentSpeed.dx = 0;
+                vehicle.currentSpeed.dy = 0;
             } else {
                 vehicle.waiting = false;
                 vehicle.currentSpeed = {...vehicle.maxSpeed};

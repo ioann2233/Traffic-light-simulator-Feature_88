@@ -1,9 +1,8 @@
 class QLearningAgent {
     constructor() {
-        this.minGreenTime = 20000; // 20 секунд
-        this.maxGreenTime = 160000; // 160 секунд
-        this.yellowTime = 5000; // 5 секунд
-        this.timeStep = 20000; // Шаг изменения времени
+        this.minGreenTime = 20000;
+        this.maxGreenTime = 160000;
+        this.yellowTime = 5000;
     }
     
     calculateGreenTime(trafficData) {
